@@ -1,5 +1,11 @@
 # Curvas B3 — Taxas Referenciais
 
+> **Produção:** <https://project-c9zq2.vercel.app> — Vercel (time `diegogozers-projects`,
+> projeto `project-c9zq2` reaproveitado) + Supabase Postgres (`curvas-b3`, sa-east-1).
+> O deploy foi feito por upload de arquivos (o token da integração não cria projetos);
+> cron diário registrado em `vercel.json` roda ~21h30 (São Paulo) em dias úteis.
+> Diagnóstico de captura: `GET /api/debug/b3?secret=$CRON_SECRET&date=AAAA-MM-DD`.
+
 Dashboard de curvas de juros com **todas as Taxas Referenciais publicadas pela B3**
 ([página oficial](https://sistemaswebb3-derivativos.b3.com.br/referenceRatesPage/all?language=pt-br)):
 DI x pré, cupom cambial, DI x IPCA, DI x IGP-M, Selic x pré, TR, cupons de moeda e as demais.
