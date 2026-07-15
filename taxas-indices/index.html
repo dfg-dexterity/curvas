@@ -1,0 +1,1664 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dexterity • Taxas & Índices</title>
+
+  <!-- Libs -->
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    *, *::before, *::after{ box-sizing: border-box; }
+
+    :root{
+      /* Dexterity palette */
+      --dx-offwhite:#F8F3E6;
+      --dx-dark:#494949;
+      --dx-teal:#009B9B;
+      --dx-purple:#715495;
+      --dx-orange:#F99D33;
+
+      /* Theme */
+      --bg: var(--dx-offwhite);
+      --text: #1f1f1f;
+      --muted: rgba(73,73,73,.85); /* 5,4:1 sobre o off-white — AA para texto pequeno */
+      --line: rgba(73,73,73,.18);
+      --shadow: 0 12px 28px rgba(73,73,73,.14);
+      --radius: 14px;
+
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    body{
+      margin:0;
+      color: var(--text);
+      background:
+        radial-gradient(1100px 700px at 18% 0%,
+          rgba(0,155,155,.18) 0%,
+          rgba(113,84,149,.10) 35%,
+          rgba(248,243,230,1) 70%),
+        var(--bg);
+    }
+
+    .wrap{ max-width:1280px; margin:0 auto; padding:26px 18px 44px; }
+
+    header{ display:flex; gap:14px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    h1{ margin:0; font-size:20px; font-weight:900; letter-spacing:.2px; color: var(--dx-dark); }
+    .sub{ color: var(--muted); font-size:13px; margin-top:6px; }
+
+    /* ---- Ícones (SVG inline) ---- */
+    .ic{
+      width:15px; height:15px; flex:none;
+      stroke:currentColor; fill:none;
+      stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+    }
+
+    /* ---- Navegação entre telas (controle segmentado) ---- */
+    .nav{
+      display:flex; gap:4px; padding:4px;
+      border:1px solid rgba(73,73,73,.18);
+      border-radius:999px;
+      background: rgba(255,255,255,.45);
+    }
+    .nav button{
+      cursor:pointer;
+      font-weight:800;
+      font-size:13px;
+      padding:8px 18px;
+      border-radius:999px;
+      border:1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+    }
+    .nav button.active{
+      border-color: rgba(0,155,155,.45);
+      background: rgba(0,155,155,.12);
+      color: var(--dx-teal);
+    }
+    .nav button:not(.active):hover{ color: var(--dx-dark); }
+
+    .controls{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    select, input, button{
+      background: rgba(248,243,230,.9);
+      border: 1px solid rgba(73,73,73,.22);
+      color: var(--dx-dark);
+      padding: 10px 12px;
+      border-radius: 12px;
+      outline: none;
+      font-size: 13px;
+    }
+    select{ min-width: 380px; }
+    button{
+      cursor:pointer;
+      font-weight:900;
+      border: 1px solid rgba(0,155,155,.55);
+      background: linear-gradient(180deg, rgba(0,155,155,.18), rgba(0,155,155,.07));
+      display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    }
+    /* hover roxo só nos botões de ação — não vaza para nav, chips e ranges */
+    .controls button:hover:not(:disabled),
+    .modal-box button:hover:not(:disabled){
+      border-color: rgba(113,84,149,.55);
+      background: linear-gradient(180deg, rgba(113,84,149,.16), rgba(113,84,149,.06));
+    }
+    button:disabled{ opacity:.55; cursor:not-allowed; }
+
+    /* foco visível para navegação por teclado (outline:none acima só apaga o anel de clique) */
+    :focus-visible{ outline: 2px solid var(--dx-teal); outline-offset: 2px; }
+
+    .grid{ display:grid; grid-template-columns: repeat(12, 1fr); gap: 12px; margin-top: 16px; }
+
+    .card{
+      background: linear-gradient(180deg, rgba(248,243,230,.96), rgba(248,243,230,.86));
+      border: 1px solid rgba(73,73,73,.18);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .span4{ grid-column: span 4; }
+    .span12{ grid-column: span 12; }
+
+    .kpi-title{ color: var(--muted); font-size:12px; margin-bottom:6px; }
+    .kpi-value{ font-size:22px; font-weight:950; letter-spacing:.2px; color: var(--dx-dark); }
+    .kpi-foot{ margin-top:6px; color: var(--muted); font-size:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+    .pill{
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(73,73,73,.20);
+      background: rgba(248,243,230,.75);
+      color: rgba(73,73,73,.88);
+      white-space: nowrap;
+    }
+    .pill.good{
+      border-color: rgba(0,155,155,.55);
+      background: rgba(0,155,155,.10);
+      color: rgba(0,155,155,.95);
+    }
+    .pill.bad{
+      border-color: rgba(249,157,51,.60);
+      background: rgba(249,157,51,.12);
+      color: #c96f00;
+    }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+    .status{ font-size:12px; color: var(--muted); }
+
+    table{ width:100%; border-collapse: collapse; }
+    thead th{
+      text-align:left; font-size:12px; color: var(--muted);
+      padding:10px 10px; border-bottom: 1px solid var(--line);
+      cursor:pointer; user-select:none;
+    }
+    tbody td{
+      padding:10px 10px; border-bottom: 1px solid rgba(73,73,73,.10);
+      font-size:13px; color: rgba(73,73,73,.92);
+    }
+    tbody tr:hover{ background: rgba(0,155,155,.06); }
+    .right{ text-align:right; }
+
+    /* ================= PAINEL ================= */
+    /* Filtro de grupos: uma única linha acima do conteúdo */
+    .chips{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+    .chip{
+      cursor:pointer;
+      padding:7px 14px;
+      border-radius:999px;
+      font-size:12.5px; font-weight:700;
+      border:1px solid rgba(73,73,73,.18);
+      background: rgba(255,255,255,.45);
+      color: var(--muted);
+    }
+    .chip:hover{ color: var(--dx-dark); border-color: rgba(73,73,73,.35); }
+    .chip.active{
+      border-color: rgba(0,155,155,.55);
+      background: rgba(0,155,155,.12);
+      color: var(--dx-teal);
+    }
+
+    .grupo-sec{ margin-top: 34px; }
+    .grupo-head{
+      display:flex; align-items:baseline; gap:10px; margin-bottom:14px;
+    }
+    .grupo-head h2{
+      margin:0; font-size:13px; font-weight:900; letter-spacing:1.2px;
+      text-transform: uppercase; color: var(--dx-dark);
+      display:inline-flex; align-items:center; gap:7px;
+    }
+    .grupo-head .ic-star{
+      width:13px; height:13px;
+      fill: var(--dx-orange); stroke: none;
+    }
+    .grupo-head .badge{
+      font-size:11px; font-weight:700; color: var(--muted);
+      border:1px solid var(--line); border-radius:999px; padding:1px 9px;
+    }
+    .grupo-head::after{
+      content:""; flex:1; height:1px; background: var(--line);
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+      gap: 14px;
+    }
+
+    .icard{
+      position:relative;
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(73,73,73,.14);
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(73,73,73,.08);
+      padding: 14px 14px 12px;
+      cursor:pointer;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      overflow:hidden;
+      min-height: 112px;
+    }
+    .icard:hover{
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px rgba(73,73,73,.15);
+      border-color: rgba(0,155,155,.50);
+    }
+    .icard .nome{
+      font-size:12px; font-weight:700; color: var(--muted);
+      line-height:1.25; min-height: 30px; padding-right:24px;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    }
+    .info-btn{
+      position:absolute; top:8px; right:8px; z-index:2;
+      width:24px; height:24px; padding:0; border-radius:50%;
+      color: var(--muted);
+      border:1px solid transparent;
+      background: transparent;
+    }
+    .info-btn .ic{ width:14px; height:14px; }
+    .info-btn:hover{
+      color: var(--dx-purple);
+      background: rgba(113,84,149,.10);
+      border-color: rgba(113,84,149,.35);
+    }
+
+    .modal{
+      position:fixed; inset:0; z-index:50;
+      background: rgba(73,73,73,.35);
+      backdrop-filter: blur(3px);
+      display:flex; align-items:center; justify-content:center; padding:20px;
+    }
+    .modal[hidden]{ display:none; }
+    .modal-box{
+      max-width:580px; width:100%;
+      background: linear-gradient(180deg, rgba(248,243,230,.99), rgba(248,243,230,.96));
+      border:1px solid rgba(0,155,155,.40);
+      border-radius: var(--radius);
+      box-shadow: 0 24px 60px rgba(73,73,73,.40);
+      padding:18px;
+    }
+    .modal-corpo{ margin-top:10px; font-size:13.5px; line-height:1.6; color: rgba(73,73,73,.95); }
+    .modal-corpo a{ color: var(--dx-teal); font-weight:700; }
+    .modal-corpo a:hover{ color: var(--dx-purple); }
+    .icard .linha-valor{
+      display:flex; align-items:baseline; gap:6px; margin-top:8px; flex-wrap:wrap;
+    }
+    .icard .valor{
+      font-size:22px; font-weight:700; color: var(--dx-dark); letter-spacing:.1px;
+    }
+    .icard .valor.menor{ font-size:17px; }
+    .icard .unidade{ font-size:11px; color: var(--muted); font-weight:600; }
+    .icard .rodape{
+      margin-top:8px;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+    }
+    .icard .data{ font-size:11px; color: var(--muted); }
+    .icard .freq{
+      font-size:10px; font-weight:700; color: var(--muted);
+      text-transform:uppercase; letter-spacing:.6px; white-space:nowrap;
+    }
+    .icard svg.spark{ display:block; width:100%; height:28px; margin-top:8px; }
+    .icard .erro{ font-size:12px; color:#c96f00; margin-top:10px; }
+
+    /* skeleton */
+    .icard.loading .valor, .icard.loading .spark-box{
+      position:relative; color:transparent; border-radius:8px;
+      background: linear-gradient(90deg, rgba(73,73,73,.08) 25%, rgba(73,73,73,.16) 50%, rgba(73,73,73,.08) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+    }
+    @keyframes shimmer{ 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    .toolbar{
+      margin-top:14px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+
+    /* ---- Aviso legal ---- */
+    .aviso{
+      margin-top:44px;
+      padding-top:16px;
+      border-top:1px solid var(--line);
+      display:flex; gap:10px; align-items:flex-start;
+      color: var(--muted);
+      font-size:11.5px; line-height:1.65;
+    }
+    .aviso .ic{ width:14px; height:14px; margin-top:2px; }
+
+    /* ---- Gráfico financeiro ---- */
+    .rng-group{ display:flex; gap:4px; flex-wrap:wrap; }
+    .rng{
+      padding:6px 11px; border-radius:8px; font-size:12px; font-weight:800;
+      border:1px solid rgba(73,73,73,.18);
+      background: rgba(248,243,230,.85);
+      color: var(--muted);
+    }
+    .rng:hover{ border-color: rgba(113,84,149,.5); color: var(--dx-purple); }
+    .rng.active{
+      border-color: rgba(0,155,155,.65);
+      background: linear-gradient(180deg, rgba(0,155,155,.20), rgba(0,155,155,.08));
+      color: var(--dx-teal);
+    }
+    .stats{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .stats .pill b{ font-variant-numeric: tabular-nums; }
+    #chartBox{ position:relative; height:400px; margin-top:10px; }
+    .lw-tip{
+      position:absolute; display:none; z-index:5; pointer-events:none;
+      background: rgba(248,243,230,.98);
+      border:1px solid rgba(0,155,155,.5);
+      border-radius:10px; padding:8px 11px;
+      font-size:12px; color: var(--dx-dark);
+      box-shadow: 0 8px 20px rgba(73,73,73,.25);
+      white-space:nowrap;
+    }
+    .lw-tip .tip-data{ color: var(--muted); font-size:11px; }
+    .lw-tip .tip-valor{ font-size:15px; font-weight:950; margin-top:2px; }
+
+    @media (max-width: 980px){
+      .span4{ grid-column: span 12; }
+      select, input{ min-width:100%; }
+      .nav{ width:100%; }
+      .nav button{ flex:1; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Sprite de ícones (traço, herdam currentColor) -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="ic-grid" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+    </symbol>
+    <symbol id="ic-chart" viewBox="0 0 24 24">
+      <path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 14l4-4 3 3 5-6"/>
+    </symbol>
+    <symbol id="ic-refresh" viewBox="0 0 24 24">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/>
+    </symbol>
+    <symbol id="ic-info" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>
+    </symbol>
+    <symbol id="ic-x" viewBox="0 0 24 24">
+      <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+    </symbol>
+    <symbol id="ic-download" viewBox="0 0 24 24">
+      <path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/>
+    </symbol>
+    <symbol id="ic-send" viewBox="0 0 24 24">
+      <path d="M12 17V4"/><path d="M7 9l5-5 5 5"/><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/>
+    </symbol>
+    <symbol id="ic-star" viewBox="0 0 24 24">
+      <path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5L2.6 9.3l6.5-.9z"/>
+    </symbol>
+  </svg>
+
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Dexterity • Taxas &amp; Índices</h1>
+        <div class="sub">Taxas de juros e indicadores econômicos — Banco Central (SGS), NY Fed e BNDES.</div>
+      </div>
+      <div class="nav">
+        <button id="navPainel" class="active"><svg class="ic" aria-hidden="true"><use href="#ic-grid"/></svg>Painel</button>
+        <button id="navHist"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg>Dados Históricos</button>
+      </div>
+    </header>
+
+    <!-- ================= TELA: PAINEL ================= -->
+    <section id="viewPainel">
+      <div class="toolbar">
+        <div class="chips" id="chips"></div>
+        <div class="controls">
+          <span class="status" id="painelStatus">Carregando cotações…</span>
+          <button id="btnAtualizar"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg>Atualizar</button>
+        </div>
+      </div>
+      <div id="painel"></div>
+    </section>
+
+    <!-- ================= TELA: DADOS HISTÓRICOS ================= -->
+    <section id="viewHist" hidden>
+      <div class="toolbar">
+        <div class="controls">
+          <select id="sel"></select>
+          <button id="btn"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg>Carregar</button>
+        </div>
+        <div class="controls">
+          <span class="status">Período:</span>
+          <input type="date" id="dtIni" title="Data inicial" />
+          <span class="status">até</span>
+          <input type="date" id="dtFim" title="Data final" />
+          <button id="btnLimparPeriodo" title="Limpar período" aria-label="Limpar período"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+          <button id="btnCsv" disabled><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg>CSV</button>
+          <button id="btnXlsx" disabled><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg>Excel</button>
+          <button id="btnSap" disabled><svg class="ic" aria-hidden="true"><use href="#ic-send"/></svg>Importar para SAP</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card span4">
+          <div class="kpi-title">Último valor</div>
+          <div class="kpi-value" id="kpiVal">—</div>
+          <div class="kpi-foot">
+            <span class="pill" id="kpiDate">Data: —</span>
+            <span class="pill" id="kpiCode">Código: —</span>
+          </div>
+        </div>
+
+        <div class="card span4">
+          <div class="kpi-title">Variação vs. anterior</div>
+          <div class="kpi-value" id="kpiDelta">—</div>
+          <div class="kpi-foot">
+            <span class="pill" id="kpiDeltaPct">—</span>
+            <span class="pill" id="kpiPrev">Anterior: —</span>
+          </div>
+        </div>
+
+        <div class="card span4">
+          <div class="kpi-title">Fonte</div>
+          <div class="kpi-value" id="kpiFonte" style="font-size:16px;">—</div>
+          <div class="kpi-foot">
+            <span class="pill" id="kpiUnidade">—</span>
+            <span class="pill" id="kpiPeriodo">Período: completo</span>
+          </div>
+        </div>
+
+        <div class="card span12" id="cardSobre" hidden>
+          <div class="kpi-title">Sobre este indicador</div>
+          <div id="sobreTexto" style="font-size:13.5px; line-height:1.6; color:rgba(73,73,73,.95);"></div>
+        </div>
+
+        <div class="card span12">
+          <div class="row">
+            <strong>Gráfico</strong>
+            <div class="rng-group" id="rngGroup">
+              <button class="rng" data-rng="1m">1M</button>
+              <button class="rng" data-rng="3m">3M</button>
+              <button class="rng" data-rng="6m">6M</button>
+              <button class="rng" data-rng="ytd">YTD</button>
+              <button class="rng" data-rng="1a">1A</button>
+              <button class="rng" data-rng="5a">5A</button>
+              <button class="rng" data-rng="10a">10A</button>
+              <button class="rng active" data-rng="tudo">Tudo</button>
+            </div>
+            <span class="status" id="status">—</span>
+          </div>
+          <div class="stats">
+            <span class="pill">Mín: <b id="statMin">—</b></span>
+            <span class="pill">Máx: <b id="statMax">—</b></span>
+            <span class="pill">Média: <b id="statMed">—</b></span>
+            <span class="pill" id="statVarPill">Variação no período: <b id="statVar">—</b></span>
+          </div>
+          <div id="chartBox">
+            <div class="lw-tip" id="chartTip"></div>
+          </div>
+        </div>
+
+        <div class="card span12">
+          <div class="row">
+            <strong>Tabela</strong>
+            <span class="status" id="count">—</span>
+          </div>
+          <div style="overflow:auto; margin-top:10px;">
+            <table id="tbl">
+              <thead>
+                <tr>
+                  <th data-k="date">Data</th>
+                  <th data-k="value" class="right">Valor</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Aviso legal -->
+    <footer class="aviso">
+      <svg class="ic" aria-hidden="true"><use href="#ic-info"/></svg>
+      <div>
+        <b>Aviso:</b> as informações exibidas neste painel são obtidas automaticamente de fontes públicas
+        (Banco Central do Brasil, Federal Reserve Bank of New York e BNDES) e destinam-se exclusivamente
+        a fins de conferência e apoio operacional. A <b>Dexterity IT Solutions</b> não se responsabiliza
+        pela exatidão, atualidade ou completude dos dados apresentados, nem por decisões tomadas com base
+        neles. Confirme sempre os valores nas publicações oficiais das respectivas fontes.
+      </div>
+    </footer>
+
+    <!-- Modal: sobre o indicador -->
+    <div id="modalInfo" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo" hidden>
+      <div class="modal-box">
+        <div class="row">
+          <strong id="modalTitulo" style="font-size:15px;"></strong>
+          <button id="modalFechar" title="Fechar" aria-label="Fechar"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+        </div>
+        <div id="modalCorpo" class="modal-corpo"></div>
+      </div>
+    </div>
+
+    <!-- Modal: importar para SAP -->
+    <div id="modalSap" class="modal" role="dialog" aria-modal="true" aria-label="Importar para SAP" hidden>
+      <div class="modal-box">
+        <div class="row">
+          <strong style="font-size:15px;">Importar para SAP — Carga de Dados de Mercado</strong>
+          <button id="modalSapFechar" title="Fechar" aria-label="Fechar"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+        </div>
+        <div class="modal-corpo">
+          <p style="margin:0 0 12px;">
+            Gera o Excel no formato aceito pelo aplicativo
+            <a href="https://fioriappslibrary.hana.ondemand.com/sap/fix/externalViewer/#/detail/Apps('F2610')/S32PCE"
+               target="_blank" rel="noopener">Importar Dados de Mercado (SAP Fiori F2610)</a>:
+            aba <b>Data</b> com <i>Categoria de dados do mercado</i>,
+            <i>Sigla da taxa de juro de referência</i>, <i>Data efetiva</i> (AAAAMMDD)
+            e <i>Taxa de juros</i>.
+            O período exportado respeita o filtro De/Até da tela.
+          </p>
+          <div class="row" style="justify-content:flex-start;">
+            <label class="status">Categoria:&nbsp;<input id="sapCategoria" style="min-width:70px; width:80px;" value="03" /></label>
+            <label class="status">Sigla no SAP:&nbsp;<input id="sapSigla" style="min-width:140px; width:170px;" /></label>
+          </div>
+          <div class="kpi-foot" style="margin-top:12px;">
+            <span class="pill" id="sapResumo">—</span>
+          </div>
+          <div style="margin-top:14px; text-align:right;">
+            <button id="btnSapGerar"><svg class="ic" aria-hidden="true"><use href="#ic-send"/></svg>Gerar Excel para SAP</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Proxies (Vercel):
+  //   /api/sgs?codigo=433[&ultimos=13]  -> BCB SGS
+  //   /api/fed?tipo=sofr[&n=13]         -> NY Fed
+  //   /api/um?code=236                  -> BNDES /Moedas/um236.txt
+
+  // Séries verificadas contra as APIs (SGS conferido por valor com o IBGE/Sidra).
+  const MAP = [
+    // ── Taxas de Juros • Brasil ──────────────────────────────────────────
+    { grupo: "Taxas de Juros • Brasil", nome: "SELIC – Meta definida pelo Copom", fonte: "sgs", codigo: "432",  unidade: "% a.a." },
+    { grupo: "Taxas de Juros • Brasil", nome: "SELIC – Acumulada no mês",         fonte: "sgs", codigo: "4390", unidade: "% a.m." },
+    { grupo: "Taxas de Juros • Brasil", nome: "SELIC – Diária",                   fonte: "sgs", codigo: "11",   unidade: "% a.d." },
+    { grupo: "Taxas de Juros • Brasil", nome: "CDI – Diário (taxa interbancária DI)", fonte: "sgs", codigo: "12",   unidade: "% a.d." },
+    { grupo: "Taxas de Juros • Brasil", nome: "CDI – Anualizado (base 252)",       fonte: "sgs", codigo: "4389", unidade: "% a.a.", popular: true },
+    { grupo: "Taxas de Juros • Brasil", nome: "CDI – Acumulado no mês",           fonte: "sgs", codigo: "4391", unidade: "% a.m." },
+    { grupo: "Taxas de Juros • Brasil", nome: "TJLP – FINEP",                     fonte: "sgs", codigo: "256",  unidade: "% a.a." },
+    { grupo: "Taxas de Juros • Brasil", nome: "TR – Taxa Referencial FINEP",      fonte: "sgs", codigo: "226",  unidade: "% a.m." },
+    { grupo: "Taxas de Juros • Brasil", nome: "TLP-IPCA – BNDES (moeda 236)",     fonte: "um",  codigo: "236",  unidade: "% a.m.", popular: true },
+
+    // ── Juros • EUA (NY Fed) ─────────────────────────────────────────────
+    { grupo: "Juros • EUA (NY Fed)", nome: "SOFR – Secured Overnight Financing Rate", fonte: "fed", codigo: "sofr", unidade: "% a.a.", popular: true },
+    { grupo: "Juros • EUA (NY Fed)", nome: "SOFRAI – SOFR Average 30 dias",  fonte: "fed", codigo: "sofrai", campo: "average30day",  unidade: "% a.a." },
+    { grupo: "Juros • EUA (NY Fed)", nome: "SOFRAI – SOFR Average 90 dias",  fonte: "fed", codigo: "sofrai", campo: "average90day",  unidade: "% a.a." },
+    { grupo: "Juros • EUA (NY Fed)", nome: "SOFRAI – SOFR Average 180 dias", fonte: "fed", codigo: "sofrai", campo: "average180day", unidade: "% a.a." },
+    { grupo: "Juros • EUA (NY Fed)", nome: "SOFRAI – SOFR Average Index",    fonte: "fed", codigo: "sofrai", campo: "index",         unidade: "índice" },
+    { grupo: "Juros • EUA (NY Fed)", nome: "EFFR – Effective Federal Funds Rate",   fonte: "fed", codigo: "effr", unidade: "% a.a." },
+    { grupo: "Juros • EUA (NY Fed)", nome: "OBFR – Overnight Bank Funding Rate",    fonte: "fed", codigo: "obfr", unidade: "% a.a." },
+    { grupo: "Juros • EUA (NY Fed)", nome: "TGCR – Tri-Party General Collateral Rate", fonte: "fed", codigo: "tgcr", unidade: "% a.a." },
+    { grupo: "Juros • EUA (NY Fed)", nome: "BGCR – Broad General Collateral Rate",  fonte: "fed", codigo: "bgcr", unidade: "% a.a." },
+
+    // ── Preços / Inflação ────────────────────────────────────────────────
+    { grupo: "Preços / Inflação", nome: "IPCA – Índice Nacional de Preços ao Consumidor Amplo", fonte: "sgs", codigo: "433",  unidade: "% a.m." },
+    { grupo: "Preços / Inflação", nome: "INPC – Índice Nacional de Preços ao Consumidor",       fonte: "sgs", codigo: "188",  unidade: "% a.m." },
+    { grupo: "Preços / Inflação", nome: "IGP-M – Índice Geral de Preços – Mercado",             fonte: "sgs", codigo: "189",  unidade: "% a.m." },
+    { grupo: "Preços / Inflação", nome: "IGP-DI – Índice Geral de Preços – Disp. Interna",      fonte: "sgs", codigo: "190",  unidade: "% a.m." },
+    { grupo: "Preços / Inflação", nome: "IGP-10 – Índice Geral de Preços 10",                   fonte: "sgs", codigo: "7447", unidade: "% a.m." },
+    { grupo: "Preços / Inflação", nome: "IPCA Educação – CPI Educação",                         fonte: "sgs", codigo: "1643", unidade: "% a.m." },
+    { grupo: "Preços / Inflação", nome: "IPA-DI – Índice de Preços ao Produtor Amplo (FGV)",    fonte: "sgs", codigo: "225",  unidade: "% a.m." },
+
+    // ── Habitação ────────────────────────────────────────────────────────
+    { grupo: "Habitação", nome: "IVG-R – Índice de Valores de Garantia de Imóveis Residenciais", fonte: "sgs", codigo: "21340", unidade: "índice" },
+
+    // ── Consumidor ───────────────────────────────────────────────────────
+    { grupo: "Consumidor", nome: "Taxa média de juros das operações de crédito – Total", fonte: "sgs", codigo: "20714", unidade: "% a.a." },
+    { grupo: "Consumidor", nome: "Crédito a pessoas físicas – Saldo",                    fonte: "sgs", codigo: "20570", unidade: "R$ milhões" },
+    { grupo: "Consumidor", nome: "ICC – Índice de Confiança do Consumidor",              fonte: "sgs", codigo: "4393",  unidade: "pontos (0–200)" },
+    { grupo: "Consumidor", nome: "Endividamento das famílias (% renda 12 meses)",        fonte: "sgs", codigo: "29037", unidade: "%" },
+    { grupo: "Consumidor", nome: "Endividamento das famílias exceto habitacional",       fonte: "sgs", codigo: "29038", unidade: "%" },
+    { grupo: "Consumidor", nome: "Vendas no varejo – Índice de volume (PMC)",            fonte: "sgs", codigo: "1455",  unidade: "índice" },
+    { grupo: "Consumidor", nome: "Vendas no varejo ampliado – Índice de volume (PMC)",   fonte: "sgs", codigo: "28473", unidade: "índice" },
+
+    // ── Dinheiro / Crédito ───────────────────────────────────────────────
+    { grupo: "Dinheiro / Crédito", nome: "Empréstimos bancários – Saldo total de crédito (SFN)", fonte: "sgs", codigo: "20539", unidade: "R$ milhões" },
+    { grupo: "Dinheiro / Crédito", nome: "Reservas internacionais",                              fonte: "sgs", codigo: "3546",  unidade: "US$ milhões" },
+
+    // ── Trabalho ─────────────────────────────────────────────────────────
+    { grupo: "Trabalho", nome: "Taxa de desocupação (PNAD Contínua)",     fonte: "sgs", codigo: "24369", unidade: "%" },
+    { grupo: "Trabalho", nome: "População ocupada",                       fonte: "sgs", codigo: "24379", unidade: "mil pessoas" },
+    { grupo: "Trabalho", nome: "População desocupada",                    fonte: "sgs", codigo: "24380", unidade: "mil pessoas" },
+    { grupo: "Trabalho", nome: "Força de trabalho",                       fonte: "sgs", codigo: "24378", unidade: "mil pessoas" },
+    { grupo: "Trabalho", nome: "População em idade de trabalhar",         fonte: "sgs", codigo: "24370", unidade: "mil pessoas" },
+    { grupo: "Trabalho", nome: "Salário mínimo",                          fonte: "sgs", codigo: "1619",  unidade: "R$" },
+
+    // ── PIB / Atividade ──────────────────────────────────────────────────
+    { grupo: "PIB / Atividade", nome: "PIB – Anual (preços correntes)",              fonte: "sgs", codigo: "1207",  unidade: "R$", popular: true },
+    { grupo: "PIB / Atividade", nome: "PIB per capita",                              fonte: "sgs", codigo: "21775", unidade: "R$" },
+    { grupo: "PIB / Atividade", nome: "PIB – Taxa de crescimento real anual",        fonte: "sgs", codigo: "7326",  unidade: "% a.a." },
+    { grupo: "PIB / Atividade", nome: "PIB – Mensal (estimativa BCB, correntes)",    fonte: "sgs", codigo: "4380",  unidade: "R$ milhões" },
+    { grupo: "PIB / Atividade", nome: "IBC-Br – Índice de Atividade Econômica",      fonte: "sgs", codigo: "24363", unidade: "índice" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – PIB a preços de mercado",         fonte: "sgs", codigo: "22099", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – PIB dessazonalizado",             fonte: "sgs", codigo: "22109", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – Agropecuária",                    fonte: "sgs", codigo: "22083", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – Indústria (total)",               fonte: "sgs", codigo: "22084", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – Indústrias extrativas",           fonte: "sgs", codigo: "22085", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – Manufatura (ind. transformação)", fonte: "sgs", codigo: "22086", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – Construção",                      fonte: "sgs", codigo: "22087", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – Eletricidade, gás, água e esgoto", fonte: "sgs", codigo: "22088", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – Serviços (total)",                fonte: "sgs", codigo: "22089", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – Comércio",                        fonte: "sgs", codigo: "22090", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – Transportes, armazenagem e correio", fonte: "sgs", codigo: "22091", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "PIB trim. – Administração pública, saúde e educação", fonte: "sgs", codigo: "22093", unidade: "índice (1995=100)" },
+    { grupo: "PIB / Atividade", nome: "Gastos de consumidores – Consumo das famílias (trim.)", fonte: "sgs", codigo: "22100", unidade: "índice (1995=100)" }
+  ];
+
+  const FONTES = {
+    sgs: "Banco Central – SGS",
+    fed: "Federal Reserve Bank of NY",
+    um:  "BNDES – Moedas Contratuais"
+  };
+
+  // O que cada indicador significa, quem divulga e para que é usado
+  const DESCRICOES = {
+    // Taxas • Brasil
+    "sgs:432":  "A taxa básica de juros da economia, definida a cada 45 dias pelo Copom (BCB) como meta anual — vale até a reunião seguinte. É o principal instrumento de política monetária: baliza o custo do crédito, o rendimento do Tesouro Selic e das aplicações pós-fixadas e ancora toda a curva de juros.",
+    "sgs:4390": "A Selic efetiva acumulada dentro do mês-calendário, divulgada pelo BCB. Usada para corrigir valores e contratos indexados à Selic e para comparar a rentabilidade mensal de aplicações pós-fixadas.",
+    "sgs:11":   "A Selic efetiva de um dia útil (overnight), apurada pelo BCB nas operações compromissadas lastreadas em títulos públicos. Divulgada todo dia útil, é a taxa que de fato remunera o dinheiro de curtíssimo prazo.",
+    "sgs:12":   "A taxa DI-Over apurada pela B3 sobre empréstimos de um dia entre bancos (CDI). Divulgada a cada dia útil, é o benchmark da renda fixa brasileira: CDBs, fundos DI e debêntures rendem um percentual dela.",
+    "sgs:4389": "O CDI expresso em taxa anual (base 252 dias úteis) — é o número citado no mercado: \"o CDI está em 14,15% ao ano\". Divulgado a cada dia útil junto com a taxa diária, acompanha de perto a Selic e é a referência para comparar qualquer investimento pós-fixado.",
+    "sgs:4391": "O CDI acumulado no mês-calendário. Serve para aferir quanto rendeu \"x% do CDI\" no mês e para corrigir contratos indexados ao DI.",
+    "sgs:256":  "A Taxa de Juros de Longo Prazo, fixada trimestralmente pelo Conselho Monetário Nacional (março, junho, setembro e dezembro). Remunera contratos antigos do BNDES e é a taxa dos financiamentos da FINEP à inovação.",
+    "sgs:226":  "A Taxa Referencial, calculada diariamente pelo BCB. Corrige a poupança, o FGTS, financiamentos habitacionais e alguns contratos FINEP — hoje fica próxima de zero na maior parte do tempo.",
+    "um:236":   "A variação mensal do IPCA na forma usada pelo BNDES (moeda contratual 236, divulgada por volta do dia 15). É o componente de inflação da TLP: contratos BNDES/FINEP indexados à TLP são corrigidos por este número mais a parcela prefixada.",
+
+    // Juros • EUA
+    "fed:sofr": "A taxa overnight garantida por títulos do Tesouro americano (mercado de repo), publicada pelo Fed de NY cada manhã com dados do dia útil anterior. Substituiu a LIBOR como referência global do dólar: empréstimos, derivativos e dívidas em USD — inclusive linhas do BNDES — são indexados a ela.",
+    "fed:sofrai:average30day":  "Média composta da SOFR nos últimos 30 dias corridos, publicada diariamente. Suaviza a volatilidade da taxa overnight e é usada em contratos de crédito que preferem uma referência estável.",
+    "fed:sofrai:average90day":  "Média composta da SOFR nos últimos 90 dias corridos. Referência suavizada para contratos e títulos de prazo mais longo em dólar.",
+    "fed:sofrai:average180day": "Média composta da SOFR nos últimos 180 dias corridos. A mais estável das médias — usada quando se quer eliminar quase todo o ruído da taxa diária.",
+    "fed:sofrai:index":         "Índice acumulado da SOFR desde 2018 (base 1). Dividindo o índice de duas datas obtém-se o juro composto exato do período — é o mecanismo padrão de cálculo em contratos indexados à SOFR.",
+    "fed:effr": "A taxa efetiva dos Fed Funds — empréstimos overnight sem garantia entre bancos nos EUA. É a taxa que o FOMC mira ao definir política monetária; divulgada todo dia útil, é o termômetro direto do juro americano.",
+    "fed:obfr": "O custo overnight de captação dos bancos americanos, combinando fed funds, eurodólares e depósitos. Complementa a EFFR com uma visão mais ampla do funding bancário não garantido.",
+    "fed:tgcr": "Taxa média das operações compromissadas tri-party com colateral geral (Treasuries). Mostra o custo do dinheiro garantido nesse segmento; publicada diariamente pelo Fed de NY.",
+    "fed:bgcr": "Versão ampla da TGCR (inclui também o segmento GCF). Mede o custo geral do funding garantido em dólar e é acompanhada para detectar estresse no mercado de repo.",
+
+    // Preços / Inflação
+    "sgs:433":  "O índice oficial de inflação do Brasil (IBGE), para famílias com renda de 1 a 40 salários mínimos, divulgado por volta do dia 10 de cada mês. Referência da meta de inflação do BCB, corrige os títulos Tesouro IPCA+ e é \"a inflação\" do noticiário.",
+    "sgs:188":  "Inflação medida pelo IBGE para famílias de 1 a 5 salários mínimos — mais sensível a alimentos e itens básicos. Usado em reajustes salariais, no salário mínimo e em causas trabalhistas.",
+    "sgs:189":  "Calculado pela FGV com coleta do dia 21 ao 20 e divulgado no fim do mês; combina atacado (60%), consumidor (30%) e construção (10%). É a \"inflação do aluguel\": reajusta locações, energia elétrica e telecom.",
+    "sgs:190":  "Mesma composição do IGP-M, mas apurado no mês-calendário (1º ao último dia). Usado na correção de contratos, tarifas e dívidas.",
+    "sgs:7447": "Mesma cesta dos IGPs com coleta do dia 11 ao 10 — é o primeiro do trio a sair e antecipa a tendência do IGP-M do mês.",
+    "sgs:1643": "O grupo Educação dentro do IPCA (IBGE). Concentra o reajuste de mensalidades — dispara todo fevereiro — e mostra o custo da educação frente à inflação geral.",
+    "sgs:225":  "O índice de preços ao produtor/atacado da FGV (60% do peso dos IGPs). Mede a inflação \"na porta da fábrica\", antes do consumidor — pressões aqui tendem a virar IPCA meses depois.",
+
+    // Habitação
+    "sgs:21340": "Índice mensal do BCB construído a partir das avaliações de imóveis dados em garantia em financiamentos habitacionais. É a melhor proxy pública de preços de imóveis residenciais no Brasil — acompanha valorização imobiliária e o risco das garantias bancárias.",
+
+    // Consumidor
+    "sgs:20714": "Taxa média de juros cobrada em todas as operações de crédito do sistema financeiro (BCB, mensal). Mostra o custo real do dinheiro para famílias e empresas e mede a transmissão da Selic ao crédito.",
+    "sgs:20570": "Estoque total de crédito a pessoas físicas (BCB, mensal). Crescimento acelerado indica consumo aquecido; desaceleração antecipa freio na economia.",
+    "sgs:4393":  "Índice de Confiança do Consumidor (Fecomércio-SP, mensal, escala 0–200 — acima de 100 predomina otimismo). Consumidor confiante consome e financia mais; funciona como indicador antecedente do varejo.",
+    "sgs:29037": "Quanto da renda acumulada em 12 meses as famílias devem ao sistema financeiro (BCB, mensal). Mede o fôlego para consumir e o risco de inadimplência.",
+    "sgs:29038": "O mesmo endividamento excluindo o crédito habitacional — isola as dívidas de consumo, que pesam mais no orçamento de curto prazo.",
+    "sgs:1455":  "Pesquisa Mensal de Comércio (IBGE): volume de vendas do varejo restrito, sem veículos e material de construção. Principal termômetro do consumo das famílias.",
+    "sgs:28473": "PMC ampliada: inclui veículos, peças e material de construção. Mais sensível ao crédito, antecipa os ciclos de consumo de bens duráveis.",
+
+    // Dinheiro / Crédito
+    "sgs:20539": "Estoque total de crédito do sistema financeiro para empresas e famílias (BCB, mensal). A relação crédito/PIB mede a profundidade financeira; a variação mostra se o motor do crédito acelera ou freia.",
+    "sgs:3546":  "O colchão de moeda estrangeira do país administrado pelo BCB (posição em US$ milhões). Reservas altas reduzem o risco cambial e dão munição para intervenções no câmbio em crises.",
+
+    // Trabalho
+    "sgs:24369": "Percentual da força de trabalho sem ocupação e procurando emprego (PNAD Contínua/IBGE, trimestre móvel divulgado mensalmente). É o número-chave do mercado de trabalho: influencia salários, consumo e as decisões do Copom.",
+    "sgs:24379": "Total de pessoas trabalhando (PNAD Contínua, em milhares). Ocupação crescendo significa renda circulando na economia.",
+    "sgs:24380": "Total de pessoas sem trabalho que procuraram emprego no período (PNAD Contínua, em milhares).",
+    "sgs:24378": "Ocupados + desocupados: todos que participam do mercado de trabalho (PNAD Contínua, em milhares).",
+    "sgs:24370": "População com 14 anos ou mais (PNAD Contínua, em milhares) — a base sobre a qual se calculam as taxas de participação e de ocupação.",
+    "sgs:1619":  "O piso legal de remuneração, fixado por lei federal com vigência a partir de janeiro. Reajusta aposentadorias e benefícios e serve de referência até para o mercado informal.",
+
+    // PIB / Atividade
+    "sgs:1207":  "A soma de tudo que o país produziu em bens e serviços finais no ano, a preços correntes (IBGE). Mede o tamanho da economia — base para relações como dívida/PIB e investimento/PIB.",
+    "sgs:21775": "O PIB dividido pela população. Medida padrão de renda média e de comparação de padrão de vida entre países e ao longo do tempo.",
+    "sgs:7326":  "Quanto o PIB cresceu em termos reais (descontada a inflação) no ano (IBGE). É o número que define se a economia cresceu ou entrou em recessão.",
+    "sgs:4380":  "Estimativa mensal do PIB nominal calculada pelo BCB (R$ milhões correntes). Permite acompanhar o tamanho da economia sem esperar as contas trimestrais.",
+    "sgs:24363": "Índice mensal de atividade do BCB, a \"prévia do PIB\". Combina indústria, serviços e agropecuária; o mercado o usa para antecipar o resultado trimestral.",
+    "sgs:22099": "Contas Nacionais Trimestrais do IBGE (~2 meses após o trimestre): índice de volume do PIB, base 1995=100. É a série oficial do crescimento trimestral.",
+    "sgs:22109": "O PIB trimestral com ajuste sazonal — remove efeitos de calendário e safra. É desta série que sai a manchete \"PIB cresceu x% ante o trimestre anterior\".",
+    "sgs:22083": "Volume trimestral da agropecuária (IBGE). Fortemente sazonal — dispara no 1º trimestre com a safra de grãos — e mostra a contribuição do campo ao PIB.",
+    "sgs:22084": "Volume trimestral de toda a indústria: extrativa, transformação, construção e utilities.",
+    "sgs:22085": "Volume trimestral da indústria extrativa (petróleo, minério). Ligado a exportações e aos preços internacionais de commodities.",
+    "sgs:22086": "Volume trimestral da indústria de transformação — a manufatura. Setor mais sensível a juros e câmbio; termômetro da competitividade industrial.",
+    "sgs:22087": "Volume trimestral da construção. Intensiva em mão de obra e dependente de crédito, costuma amplificar os ciclos econômicos.",
+    "sgs:22088": "Volume trimestral de eletricidade, gás, água, esgoto e limpeza urbana (utilities). Acompanha a atividade geral e o consumo das famílias.",
+    "sgs:22089": "Volume trimestral dos serviços — cerca de 70% do PIB. É o que de fato dita o ritmo da economia e do emprego.",
+    "sgs:22090": "Volume trimestral do comércio (atacado e varejo) nas contas nacionais.",
+    "sgs:22091": "Volume trimestral de transportes, armazenagem e correio. Move-se junto com indústria e comércio — a logística é atividade-meio da economia.",
+    "sgs:22093": "Volume trimestral de administração, saúde e educação públicas. Componente estável do PIB, pouco sensível ao ciclo econômico.",
+    "sgs:22100": "A despesa de consumo das famílias nas contas trimestrais — o maior componente do PIB pela ótica da demanda (~65%). É a medida oficial de \"gastos do consumidor\" no Brasil."
+  };
+
+  function descDe(item){
+    return DESCRICOES[itemId(item)] || "";
+  }
+
+  // Com que frequência cada série é divulgada
+  const PERIODICIDADE = {
+    "sgs:432": "A cada 45 dias (Copom)", "sgs:4390": "Mensal", "sgs:11": "Diária (dias úteis)",
+    "sgs:12": "Diária (dias úteis)", "sgs:4389": "Diária (dias úteis)", "sgs:4391": "Mensal",
+    "sgs:256": "Trimestral (CMN)", "sgs:226": "Diária (dias úteis)", "um:236": "Mensal (dia 15)",
+    "fed:sofr": "Diária (dias úteis EUA)", "fed:effr": "Diária (dias úteis EUA)",
+    "fed:obfr": "Diária (dias úteis EUA)", "fed:tgcr": "Diária (dias úteis EUA)", "fed:bgcr": "Diária (dias úteis EUA)",
+    "fed:sofrai:average30day": "Diária (dias úteis EUA)", "fed:sofrai:average90day": "Diária (dias úteis EUA)",
+    "fed:sofrai:average180day": "Diária (dias úteis EUA)", "fed:sofrai:index": "Diária (dias úteis EUA)",
+    "sgs:433": "Mensal (~dia 10)", "sgs:188": "Mensal (~dia 10)", "sgs:189": "Mensal (fim do mês)",
+    "sgs:190": "Mensal", "sgs:7447": "Mensal", "sgs:1643": "Mensal", "sgs:225": "Mensal",
+    "sgs:21340": "Mensal",
+    "sgs:20714": "Mensal", "sgs:20570": "Mensal", "sgs:4393": "Mensal",
+    "sgs:29037": "Mensal", "sgs:29038": "Mensal", "sgs:1455": "Mensal", "sgs:28473": "Mensal",
+    "sgs:20539": "Mensal", "sgs:3546": "Mensal",
+    "sgs:24369": "Mensal (trimestre móvel)", "sgs:24379": "Mensal (trimestre móvel)",
+    "sgs:24380": "Mensal (trimestre móvel)", "sgs:24378": "Mensal (trimestre móvel)",
+    "sgs:24370": "Mensal (trimestre móvel)", "sgs:1619": "Anual (janeiro)",
+    "sgs:1207": "Anual", "sgs:21775": "Anual", "sgs:7326": "Anual", "sgs:4380": "Mensal",
+    "sgs:24363": "Mensal", "sgs:22099": "Trimestral", "sgs:22109": "Trimestral",
+    "sgs:22083": "Trimestral", "sgs:22084": "Trimestral", "sgs:22085": "Trimestral",
+    "sgs:22086": "Trimestral", "sgs:22087": "Trimestral", "sgs:22088": "Trimestral",
+    "sgs:22089": "Trimestral", "sgs:22090": "Trimestral", "sgs:22091": "Trimestral",
+    "sgs:22093": "Trimestral", "sgs:22100": "Trimestral"
+  };
+
+  // O que o número de cada série representa (a forma de medição)
+  const MEDIDAS = {
+    "sgs:432":  "Meta de taxa de juros expressa ao ano (% a.a.), válida até a reunião seguinte do Copom.",
+    "sgs:4390": "Juro efetivo acumulado dentro do mês-calendário (%).",
+    "sgs:11":   "Taxa efetiva de um único dia útil (% ao dia).",
+    "sgs:12":   "Taxa DI de um único dia útil (% ao dia).",
+    "sgs:4389": "Taxa anual equivalente: o juro do dia projetado para o ano, na base de 252 dias úteis (% a.a.).",
+    "sgs:4391": "Juro DI acumulado dentro do mês-calendário (%).",
+    "sgs:256":  "Taxa de juros expressa ao ano (% a.a.), fixada para vigorar no trimestre.",
+    "sgs:226":  "Taxa do período de um mês (do dia até o mesmo dia do mês seguinte), divulgada diariamente (%).",
+    "um:236":   "Variação percentual mensal do IPCA aplicada aos contratos TLP (%).",
+    "fed:sofr": "Taxa de um dia expressa ao ano (% a.a.), como é padrão no mercado americano.",
+    "fed:effr": "Taxa de um dia expressa ao ano (% a.a.).",
+    "fed:obfr": "Taxa de um dia expressa ao ano (% a.a.).",
+    "fed:tgcr": "Taxa de um dia expressa ao ano (% a.a.).",
+    "fed:bgcr": "Taxa de um dia expressa ao ano (% a.a.).",
+    "fed:sofrai:average30day":  "Média composta da SOFR nos últimos 30 dias corridos, expressa ao ano (% a.a.).",
+    "fed:sofrai:average90day":  "Média composta da SOFR nos últimos 90 dias corridos, expressa ao ano (% a.a.).",
+    "fed:sofrai:average180day": "Média composta da SOFR nos últimos 180 dias corridos, expressa ao ano (% a.a.).",
+    "fed:sofrai:index":         "Índice acumulado desde abr/2018 (base 1): a razão entre duas datas dá o juro composto do período.",
+    "sgs:433":  "Variação percentual dos preços no mês (%). Inflação de 12 meses = acumulado das 12 últimas variações.",
+    "sgs:188":  "Variação percentual dos preços no mês (%) para famílias de 1 a 5 salários mínimos.",
+    "sgs:189":  "Variação percentual dos preços no mês (%), com coleta do dia 21 ao dia 20.",
+    "sgs:190":  "Variação percentual dos preços no mês-calendário (%).",
+    "sgs:7447": "Variação percentual dos preços no mês (%), com coleta do dia 11 ao dia 10.",
+    "sgs:1643": "Variação percentual dos preços de educação no mês (%).",
+    "sgs:225":  "Variação percentual dos preços no atacado/produtor no mês (%).",
+    "sgs:21340": "Índice do valor dos imóveis residenciais dados em garantia — mede o nível de preços, não a variação.",
+    "sgs:20714": "Taxa média de juros do estoque de operações de crédito, expressa ao ano (% a.a.).",
+    "sgs:20570": "Saldo devedor total na posição de fim de mês (R$ milhões).",
+    "sgs:4393":  "Pontuação de 0 a 200: acima de 100 predomina otimismo, abaixo, pessimismo.",
+    "sgs:29037": "Dívida total das famílias como % da renda acumulada nos últimos 12 meses.",
+    "sgs:29038": "Dívida das famílias, excluído o crédito habitacional, como % da renda de 12 meses.",
+    "sgs:1455":  "Índice de volume de vendas (quantidade, sem efeito de preços) — mede o nível, não a variação.",
+    "sgs:28473": "Índice de volume de vendas incluindo veículos e material de construção.",
+    "sgs:20539": "Saldo total de crédito do sistema financeiro na posição de fim de mês (R$ milhões).",
+    "sgs:3546":  "Posição das reservas em fim de mês (US$ milhões).",
+    "sgs:24369": "Percentual da força de trabalho sem ocupação no trimestre móvel encerrado no mês (%).",
+    "sgs:24379": "Total de pessoas ocupadas no trimestre móvel (milhares).",
+    "sgs:24380": "Total de pessoas desocupadas no trimestre móvel (milhares).",
+    "sgs:24378": "Total de pessoas na força de trabalho no trimestre móvel (milhares).",
+    "sgs:24370": "População com 14 anos ou mais (milhares).",
+    "sgs:1619":  "Valor mensal do piso salarial vigente (R$ por mês).",
+    "sgs:1207":  "Soma de toda a produção do ano a preços correntes (R$) — o tamanho da economia no ano.",
+    "sgs:21775": "PIB do ano dividido pela população: a renda média anual por pessoa (R$ por habitante/ano).",
+    "sgs:7326":  "Crescimento real do PIB no ano contra o ano anterior, já descontada a inflação (%).",
+    "sgs:4380":  "PIB nominal estimado do mês (R$ milhões correntes).",
+    "sgs:24363": "Índice de nível de atividade econômica — mede o nível, não a variação.",
+    "sgs:22099": "Índice de volume encadeado (média de 1995 = 100) — o nível de produção do trimestre.",
+    "sgs:22109": "Índice de volume com ajuste sazonal (média de 1995 = 100); a variação contra o trimestre anterior é o crescimento do PIB.",
+    "sgs:22083": "Índice de volume do setor no trimestre (média de 1995 = 100).",
+    "sgs:22084": "Índice de volume do setor no trimestre (média de 1995 = 100).",
+    "sgs:22085": "Índice de volume do setor no trimestre (média de 1995 = 100).",
+    "sgs:22086": "Índice de volume do setor no trimestre (média de 1995 = 100).",
+    "sgs:22087": "Índice de volume do setor no trimestre (média de 1995 = 100).",
+    "sgs:22088": "Índice de volume do setor no trimestre (média de 1995 = 100).",
+    "sgs:22089": "Índice de volume do setor no trimestre (média de 1995 = 100).",
+    "sgs:22090": "Índice de volume do setor no trimestre (média de 1995 = 100).",
+    "sgs:22091": "Índice de volume do setor no trimestre (média de 1995 = 100).",
+    "sgs:22093": "Índice de volume do setor no trimestre (média de 1995 = 100).",
+    "sgs:22100": "Índice de volume do consumo das famílias no trimestre (média de 1995 = 100)."
+  };
+
+  function freqDe(item){ return PERIODICIDADE[itemId(item)] || ""; }
+  function medidaDe(item){ return MEDIDAS[itemId(item)] || ""; }
+
+  // ---- Modais (com gestão de foco) ----
+  const modalInfo = document.getElementById("modalInfo");
+  const modalTitulo = document.getElementById("modalTitulo");
+  const modalCorpo = document.getElementById("modalCorpo");
+
+  let focoAnterior = null;
+  function abrirModal(el){
+    focoAnterior = document.activeElement;
+    el.hidden = false;
+    const b = el.querySelector("button");
+    if (b) b.focus();
+  }
+  function fecharModal(el){
+    if (el.hidden) return;
+    el.hidden = true;
+    if (focoAnterior && typeof focoAnterior.focus === "function") focoAnterior.focus();
+  }
+
+  function abrirInfo(item){
+    if (!item) return;
+    modalTitulo.textContent = item.nome;
+    const desc = descDe(item);
+    const medida = medidaDe(item);
+    modalCorpo.innerHTML =
+      `<div class="kpi-foot" style="margin:0 0 12px;">` +
+        `<span class="pill">Periodicidade: ${freqDe(item) || "—"}</span>` +
+        `<span class="pill">${item.unidade}</span>` +
+      `</div>` +
+      (medida ? `<p style="margin:0 0 10px;"><b>O que o número representa:</b> ${medida}</p>` : "") +
+      `<p style="margin:0 0 12px;">${desc || "Sem descrição disponível."}</p>` +
+      `<div class="kpi-foot">` +
+        `<span class="pill">${FONTES[item.fonte] || ""}</span>` +
+        `<span class="pill">Código: ${item.codigo}${item.campo ? " • " + item.campo : ""}</span>` +
+      `</div>`;
+    abrirModal(modalInfo);
+  }
+
+  document.getElementById("modalFechar").addEventListener("click", () => fecharModal(modalInfo));
+  modalInfo.addEventListener("click", (e) => { if (e.target === modalInfo) fecharModal(modalInfo); });
+
+  // ---- Importar para SAP (carga de dados de mercado) ----
+  const modalSap = document.getElementById("modalSap");
+  const sapCategoria = document.getElementById("sapCategoria");
+  const sapSigla = document.getElementById("sapSigla");
+  const sapResumo = document.getElementById("sapResumo");
+
+  // Sigla de referência sugerida por série (editável no diálogo)
+  const SAP_SIGLAS = {
+    "sgs:4389": "CDI",  "sgs:12": "CDI",    "sgs:4391": "CDI",
+    "sgs:432": "SELIC", "sgs:4390": "SELIC","sgs:11": "SELIC",
+    "sgs:256": "TJLP",  "sgs:226": "TR",    "um:236": "TLP-IPCA",
+    "fed:sofr": "SOFR", "fed:effr": "EFFR", "fed:obfr": "OBFR",
+    "fed:tgcr": "TGCR", "fed:bgcr": "BGCR",
+    "fed:sofrai:average30day": "SOFR30", "fed:sofrai:average90day": "SOFR90",
+    "fed:sofrai:average180day": "SOFR180", "fed:sofrai:index": "SOFRINDX"
+  };
+
+  function sapSiglaPadrao(item){
+    if (SAP_SIGLAS[itemId(item)]) return SAP_SIGLAS[itemId(item)];
+    // deriva do nome: primeiro token, sem acentos, maiúsculo (ex.: "IGP-M – ..." -> "IGP-M")
+    return item.nome.split("–")[0].trim().split(" ")[0]
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().slice(0, 10);
+  }
+
+  function gerarAoaSap(){
+    const cat = sapCategoria.value.trim() || "03";
+    const sigla = sapSigla.value.trim() || (itemAtual ? sapSiglaPadrao(itemAtual) : "SERIE");
+    const asc = [...viewRows].sort((a,b) => a.date - b.date);
+    const aoa = [[
+      "Categoria de dados do mercado",
+      "Sigla da taxa de juro de referência",
+      "Data efetiva",
+      "Taxa de juros"
+    ]];
+    for (const r of asc){
+      aoa.push([cat, sigla, toYMD(r.date).replace(/-/g, ""), r.value]);
+    }
+    return { aoa, sigla };
+  }
+
+  document.getElementById("btnSap").addEventListener("click", () => {
+    if (!itemAtual || !viewRows.length) return;
+    sapCategoria.value = "03";
+    sapSigla.value = sapSiglaPadrao(itemAtual);
+    const { ini, fim } = periodoAtivo();
+    const periodoTxt = (ini || fim)
+      ? `${ini ? ini.toLocaleDateString("pt-BR") : "início"} → ${fim ? fim.toLocaleDateString("pt-BR") : "hoje"}`
+      : "série completa";
+    sapResumo.textContent = `${itemAtual.nome} • ${viewRows.length} linhas • ${periodoTxt}`;
+    abrirModal(modalSap);
+  });
+
+  document.getElementById("btnSapGerar").addEventListener("click", () => {
+    const { aoa, sigla } = gerarAoaSap();
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data");
+    XLSX.writeFile(wb, `Dados de Mercado Carga ${sigla}${sufixoPeriodo()}.xlsx`);
+    fecharModal(modalSap);
+  });
+
+  document.getElementById("modalSapFechar").addEventListener("click", () => fecharModal(modalSap));
+  modalSap.addEventListener("click", (e) => { if (e.target === modalSap) fecharModal(modalSap); });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape"){ fecharModal(modalInfo); fecharModal(modalSap); }
+  });
+
+  // ---- DOM ----
+  const navPainel = document.getElementById("navPainel");
+  const navHist = document.getElementById("navHist");
+  const viewPainel = document.getElementById("viewPainel");
+  const viewHist = document.getElementById("viewHist");
+
+  const painelEl = document.getElementById("painel");
+  const painelStatus = document.getElementById("painelStatus");
+  const btnAtualizar = document.getElementById("btnAtualizar");
+
+  const sel = document.getElementById("sel");
+  const btn = document.getElementById("btn");
+  const btnCsv = document.getElementById("btnCsv");
+  const btnXlsx = document.getElementById("btnXlsx");
+  const dtIni = document.getElementById("dtIni");
+  const dtFim = document.getElementById("dtFim");
+  const btnLimparPeriodo = document.getElementById("btnLimparPeriodo");
+
+  const statusEl = document.getElementById("status");
+  const countEl = document.getElementById("count");
+
+  const kpiVal = document.getElementById("kpiVal");
+  const kpiDate = document.getElementById("kpiDate");
+  const kpiCode = document.getElementById("kpiCode");
+  const kpiDelta = document.getElementById("kpiDelta");
+  const kpiDeltaPct = document.getElementById("kpiDeltaPct");
+  const kpiPrev = document.getElementById("kpiPrev");
+  const kpiFonte = document.getElementById("kpiFonte");
+  const kpiUnidade = document.getElementById("kpiUnidade");
+  const kpiPeriodo = document.getElementById("kpiPeriodo");
+
+  const tbody = document.querySelector("#tbl tbody");
+
+  let rawRows = [];
+  let viewRows = [];
+  let sortKey = "date";
+  let sortDir = "desc";
+  let itemAtual = null;
+
+  // Gráfico financeiro (TradingView Lightweight Charts)
+  let lwChart = null;
+  let lwSeries = null;
+  let lwSeriesTipo = null;
+
+  function itemId(item){
+    return `${item.fonte}:${item.codigo}${item.campo ? ":" + item.campo : ""}`;
+  }
+
+  function fmtNumber(n, casasMax){
+    if (!Number.isFinite(n)) return "—";
+    const abs = Math.abs(n);
+    const dec = casasMax ?? (abs >= 1000 ? 2 : 6);
+    return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: dec });
+  }
+
+  // Valor compacto para os cards do painel (PIB de R$ 12,7 tri não cabe por extenso)
+  function fmtCompact(n){
+    if (!Number.isFinite(n)) return "—";
+    const abs = Math.abs(n);
+    if (abs >= 1e12) return (n/1e12).toLocaleString("pt-BR",{maximumFractionDigits:2}) + " tri";
+    if (abs >= 1e9)  return (n/1e9).toLocaleString("pt-BR",{maximumFractionDigits:2}) + " bi";
+    if (abs >= 1e6)  return (n/1e6).toLocaleString("pt-BR",{maximumFractionDigits:2}) + " mi";
+    if (abs >= 1000) return n.toLocaleString("pt-BR",{maximumFractionDigits:2});
+    return n.toLocaleString("pt-BR",{minimumFractionDigits:2, maximumFractionDigits:4});
+  }
+
+  // ---- Parsers (normalizam para {dateStr, date, value}) ----
+
+  function parseSgsJson(json){
+    const out = [];
+    for (const r of json){
+      const dateStr = r.data;
+      const value = Number(r.valor);
+      if (!dateStr || !Number.isFinite(value)) continue;
+      const [dd, mm, yyyy] = dateStr.split("/").map(Number);
+      out.push({ dateStr, date: new Date(yyyy, mm-1, dd), value });
+    }
+    return out.sort((a,b) => b.date - a.date);
+  }
+
+  function parseFedJson(json, campo){
+    const field = campo || "percentRate";
+    const out = [];
+    for (const r of (json.refRates || [])){
+      const value = Number(r[field]);
+      if (!r.effectiveDate || !Number.isFinite(value)) continue;
+      const [yyyy, mm, dd] = r.effectiveDate.split("-").map(Number);
+      const dateStr = `${String(dd).padStart(2,"0")}/${String(mm).padStart(2,"0")}/${yyyy}`;
+      out.push({ dateStr, date: new Date(yyyy, mm-1, dd), value });
+    }
+    return out.sort((a,b) => b.date - a.date);
+  }
+
+  function parseBndesTxt(text){
+    const cleaned = text.replace(/\r?\n/g, " ").trim();
+    let t = cleaned.replace(/^data\s*;\s*valor\s*/i, "");
+    // BNDES separa o sinal do número com espaços nos negativos: "15/09/2025;-      0,110000"
+    const re = /(\d{2}\/\d{2}\/\d{4})\s*;\s*([+-]?\s*\d+(?:,\d+)?)/g;
+    const out = [];
+    let m;
+    while ((m = re.exec(t)) !== null){
+      const dateStr = m[1];
+      const value = Number(m[2].replace(/\s+/g, "").replace(",", "."));
+      const [dd, mm, yyyy] = dateStr.split("/").map(Number);
+      out.push({ dateStr, date: new Date(yyyy, mm-1, dd), value });
+    }
+    return out.sort((a,b) => b.date - a.date);
+  }
+
+  // ---- Busca de séries ----
+
+  async function fetchSerie(item, opts){
+    const recentes = opts && opts.recentes;
+    if (item.fonte === "sgs"){
+      const url = recentes ? `/api/sgs?codigo=${item.codigo}&ultimos=13` : `/api/sgs?codigo=${item.codigo}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return parseSgsJson(await res.json());
+    }
+    if (item.fonte === "fed"){
+      const url = recentes ? `/api/fed?tipo=${item.codigo}&n=13` : `/api/fed?tipo=${item.codigo}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return parseFedJson(await res.json(), item.campo);
+    }
+    // BNDES: sempre o arquivo completo (é pequeno)
+    const res = await fetch(`/api/um?code=${item.codigo}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return parseBndesTxt(await res.text());
+  }
+
+  // ================= PAINEL =================
+
+  function sparklineSvg(rows){
+    // rows desc -> asc, últimos 13 pontos; traço na cor de de-ênfase,
+    // só o ponto atual leva o accent (contrato de stat tile)
+    const vals = [...rows].sort((a,b) => a.date - b.date).map(r => r.value).slice(-13);
+    if (vals.length < 2) return "";
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const range = (max - min) || 1;
+    const W = 100, H = 28, PAD = 3;
+    const pts = vals.map((v, i) => {
+      const x = PAD + (i * (W - 2*PAD)) / (vals.length - 1);
+      const y = H - PAD - ((v - min) / range) * (H - 2*PAD);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    const [fx, fy] = pts[pts.length-1].split(",");
+    return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <polyline points="${pts.join(" ")}" fill="none" stroke="rgba(73,73,73,.35)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${fx}" cy="${fy}" r="2.6" fill="#009B9B" stroke="#F8F3E6" stroke-width="1.6"/>
+    </svg>`;
+  }
+
+  function cardHtml(item, idx, prefixo){
+    return `<div class="icard loading" id="card-${prefixo || ""}${idx}" data-idx="${idx}" title="Clique para ver o histórico completo">
+      <button class="info-btn" data-idx="${idx}" title="O que é este indicador?" aria-label="O que é este indicador?"><svg class="ic" aria-hidden="true"><use href="#ic-info"/></svg></button>
+      <div class="nome">${item.nome}</div>
+      <div class="linha-valor"><span class="valor">000000</span><span class="unidade">${item.unidade}</span></div>
+      <div class="spark-box" style="height:28px; margin-top:8px;"></div>
+      <div class="rodape"><span class="data"></span><span class="freq">${(freqDe(item) || "").split(" (")[0]}</span></div>
+    </div>`;
+  }
+
+  function preencherCard(idx, rows, erro){
+    const item = MAP[idx];
+    // a mesma série pode ter card em Populares e no grupo — preenche todos
+    const els = document.querySelectorAll(`.icard[data-idx="${idx}"]`);
+    for (const el of els){
+      el.classList.remove("loading");
+
+      if (erro || !rows || !rows.length){
+        el.querySelector(".linha-valor").innerHTML = `<span class="valor menor">—</span>`;
+        el.querySelector(".spark-box").outerHTML = `<div class="erro">Falha ao carregar${erro ? ` (${erro})` : ""}. Clique para tentar no histórico.</div>`;
+        continue;
+      }
+
+      const last = rows[0];
+      const valTxt = fmtCompact(last.value);
+      el.querySelector(".linha-valor").innerHTML =
+        `<span class="valor ${valTxt.length > 9 ? "menor" : ""}">${valTxt}</span><span class="unidade">${item.unidade}</span>`;
+      el.querySelector(".spark-box").outerHTML = sparklineSvg(rows) || `<div style="height:28px; margin-top:8px;"></div>`;
+      el.querySelector(".data").textContent = last.dateStr;
+    }
+  }
+
+  async function carregarPainel(){
+    btnAtualizar.disabled = true;
+
+    // monta skeleton agrupado em seções — Populares primeiro
+    const populares = MAP.map((m, i) => ({ m, i })).filter(x => x.m.popular);
+    const grupos = [...new Set(MAP.map(m => m.grupo))];
+    painelEl.innerHTML =
+      (populares.length ? `
+      <section class="grupo-sec" data-grupo="Populares">
+        <div class="grupo-head">
+          <h2><svg class="ic ic-star" aria-hidden="true"><use href="#ic-star"/></svg>Populares</h2>
+          <span class="badge">${populares.length} séries</span>
+        </div>
+        <div class="cards">${populares.map(x => cardHtml(x.m, x.i, "pop-")).join("")}</div>
+      </section>` : "") +
+      grupos.map(g => `
+      <section class="grupo-sec" data-grupo="${g}">
+        <div class="grupo-head">
+          <h2>${g}</h2>
+          <span class="badge">${MAP.filter(m => m.grupo === g).length} séries</span>
+        </div>
+        <div class="cards">${MAP.map((m,i) => m.grupo === g ? cardHtml(m,i) : "").join("")}</div>
+      </section>
+      `).join("");
+    aplicarFiltroGrupos();
+
+    // clique nos cards -> histórico; no ℹ︎ -> modal com a explicação
+    painelEl.querySelectorAll(".icard").forEach(el => {
+      el.addEventListener("click", (e) => {
+        const idx = Number(el.dataset.idx);
+        if (e.target.closest(".info-btn")){
+          abrirInfo(MAP[idx]);
+          return;
+        }
+        sel.value = String(idx);
+        showView("hist");
+        loadSeries();
+      });
+    });
+
+    // busca com dedup (sofrai é 1 request para 4 cards) e limite de concorrência
+    const cache = new Map(); // chave fonte:codigo -> Promise<rows base (sem campo)>
+    let feitos = 0, falhas = 0;
+    const total = MAP.length;
+    painelStatus.textContent = `Carregando cotações… 0/${total}`;
+
+    const tarefas = MAP.map((item, idx) => async () => {
+      try{
+        let rows;
+        if (item.fonte === "fed"){
+          const key = `fed:${item.codigo}`;
+          if (!cache.has(key)){
+            cache.set(key, fetch(`/api/fed?tipo=${item.codigo}&n=13`, {cache:"no-store"}).then(r => {
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              return r.json();
+            }));
+          }
+          rows = parseFedJson(await cache.get(key), item.campo);
+        } else if (item.fonte === "um"){
+          const key = `um:${item.codigo}`;
+          if (!cache.has(key)){
+            cache.set(key, fetch(`/api/um?code=${item.codigo}`, {cache:"no-store"}).then(r => {
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              return r.text();
+            }));
+          }
+          rows = parseBndesTxt(await cache.get(key));
+        } else {
+          const res = await fetch(`/api/sgs?codigo=${item.codigo}&ultimos=13`, {cache:"no-store"});
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          rows = parseSgsJson(await res.json());
+        }
+        preencherCard(idx, rows);
+      } catch(e){
+        falhas++;
+        preencherCard(idx, null, e.message);
+      } finally{
+        feitos++;
+        painelStatus.textContent = `Carregando cotações… ${feitos}/${total}`;
+      }
+    });
+
+    // pool de 8 requisições simultâneas
+    const fila = [...tarefas];
+    await Promise.all(Array.from({length: 8}, async () => {
+      while (fila.length) await fila.shift()();
+    }));
+
+    const agora = new Date();
+    painelStatus.textContent = `Atualizado às ${agora.toLocaleTimeString("pt-BR")}` + (falhas ? ` • ${falhas} série(s) com falha` : "");
+    btnAtualizar.disabled = false;
+  }
+
+  // ================= NAVEGAÇÃO =================
+
+  function showView(qual){
+    const painel = qual === "painel";
+    viewPainel.hidden = !painel;
+    viewHist.hidden = painel;
+    navPainel.classList.toggle("active", painel);
+    navHist.classList.toggle("active", !painel);
+    navPainel.setAttribute("aria-pressed", String(painel));
+    navHist.setAttribute("aria-pressed", String(!painel));
+    localStorage.setItem("taxas_view", qual);
+  }
+
+  navPainel.addEventListener("click", () => showView("painel"));
+  navHist.addEventListener("click", () => showView("hist"));
+  btnAtualizar.addEventListener("click", carregarPainel);
+
+  // ---- Filtro de grupos (chips, uma linha acima do conteúdo) ----
+  const chipsEl = document.getElementById("chips");
+  let grupoAtivo = "todos";
+
+  function aplicarFiltroGrupos(){
+    painelEl.querySelectorAll(".grupo-sec").forEach(sec => {
+      sec.style.display = (grupoAtivo === "todos" || sec.dataset.grupo === grupoAtivo) ? "" : "none";
+    });
+  }
+
+  (function construirChips(){
+    const grupos = ["todos", "Populares", ...new Set(MAP.map(m => m.grupo))];
+    for (const g of grupos){
+      const b = document.createElement("button");
+      b.className = "chip" + (g === grupoAtivo ? " active" : "");
+      b.textContent = (g === "todos") ? "Todos" : g;
+      b.addEventListener("click", () => {
+        grupoAtivo = g;
+        chipsEl.querySelectorAll(".chip").forEach(c => c.classList.toggle("active", c === b));
+        aplicarFiltroGrupos();
+      });
+      chipsEl.appendChild(b);
+    }
+  })();
+
+  // ================= DADOS HISTÓRICOS =================
+
+  function renderKPIs(rows, item){
+    kpiFonte.textContent = FONTES[item.fonte] || "—";
+    kpiUnidade.textContent = `${item.unidade || "—"}${freqDe(item) ? " • " + freqDe(item) : ""}`;
+
+    if (!rows.length){
+      kpiVal.textContent = "—";
+      kpiDate.textContent = "Data: —";
+      kpiCode.textContent = "Código: —";
+      kpiDelta.textContent = "—";
+      kpiDeltaPct.textContent = "—";
+      kpiPrev.textContent = "Anterior: —";
+      return;
+    }
+
+    const last = rows[0];
+    const prev = rows[1];
+
+    kpiVal.textContent = fmtNumber(last.value);
+    kpiDate.textContent = `Data: ${last.dateStr}`;
+    kpiCode.textContent = `Código: ${item.codigo}${item.campo ? " • " + item.campo : ""}`;
+
+    if (prev){
+      const delta = last.value - prev.value;
+      const pct = (prev.value !== 0) ? (delta / prev.value) * 100 : NaN;
+
+      kpiDelta.textContent = fmtNumber(delta);
+
+      kpiDeltaPct.classList.remove("good","bad");
+      if (Number.isFinite(delta) && delta >= 0) kpiDeltaPct.classList.add("good");
+      if (Number.isFinite(delta) && delta < 0) kpiDeltaPct.classList.add("bad");
+
+      kpiDeltaPct.textContent = Number.isFinite(pct)
+        ? `${pct.toLocaleString("pt-BR",{minimumFractionDigits:2, maximumFractionDigits:2})}%`
+        : "—";
+
+      kpiPrev.textContent = `Anterior: ${prev.dateStr} • ${fmtNumber(prev.value)}`;
+    } else {
+      kpiDelta.textContent = "—";
+      kpiDeltaPct.textContent = "—";
+      kpiPrev.textContent = "Anterior: —";
+    }
+  }
+
+  function renderTable(rows){
+    tbody.innerHTML = "";
+    const frag = document.createDocumentFragment();
+    for (const r of rows){
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td"); td1.textContent = r.dateStr;
+      const td2 = document.createElement("td"); td2.textContent = fmtNumber(r.value); td2.className = "right";
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      frag.appendChild(tr);
+    }
+    tbody.appendChild(frag);
+    countEl.textContent = `${rows.length} linhas`;
+  }
+
+  const chartBox = document.getElementById("chartBox");
+  const chartTip = document.getElementById("chartTip");
+
+  function toYMD(d){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  function bdToStr(t){
+    // BusinessDay {year, month, day} -> DD/MM/AAAA
+    if (t && typeof t === "object") return `${String(t.day).padStart(2,"0")}/${String(t.month).padStart(2,"0")}/${t.year}`;
+    return String(t);
+  }
+
+  function ensureChart(){
+    if (lwChart) return;
+    lwChart = LightweightCharts.createChart(chartBox, {
+      autoSize: true,
+      layout: {
+        background: { type: "solid", color: "transparent" },
+        textColor: "rgba(73,73,73,.85)",
+        fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
+        attributionLogo: false
+      },
+      grid: {
+        vertLines: { color: "rgba(73,73,73,.07)" },
+        horzLines: { color: "rgba(73,73,73,.07)" }
+      },
+      rightPriceScale: { borderColor: "rgba(73,73,73,.18)" },
+      timeScale: { borderColor: "rgba(73,73,73,.18)", rightOffset: 2 },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Magnet,
+        vertLine: { color: "rgba(113,84,149,.5)", width: 1, style: 2, labelBackgroundColor: "#715495" },
+        horzLine: { color: "rgba(113,84,149,.5)", width: 1, style: 2, labelBackgroundColor: "#715495" }
+      },
+      localization: {
+        locale: "pt-BR",
+        priceFormatter: v => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 4 })
+      }
+    });
+
+    // Tooltip flutuante estilo plataforma de mercado
+    lwChart.subscribeCrosshairMove(param => {
+      if (!param || !param.time || !param.point || !lwSeries ||
+          param.point.x < 0 || param.point.y < 0){
+        chartTip.style.display = "none";
+        return;
+      }
+      const sd = param.seriesData.get(lwSeries);
+      const v = sd && (sd.value ?? sd.close);
+      if (!Number.isFinite(v)){ chartTip.style.display = "none"; return; }
+
+      chartTip.innerHTML =
+        `<div class="tip-data">${bdToStr(param.time)}</div>` +
+        `<div class="tip-valor">${fmtNumber(v)} <span style="font-size:11px; color:rgba(73,73,73,.6); font-weight:700;">${itemAtual ? itemAtual.unidade : ""}</span></div>`;
+      chartTip.style.display = "block";
+
+      const margem = 12;
+      let x = param.point.x + margem;
+      let y = param.point.y + margem;
+      if (x + chartTip.offsetWidth > chartBox.clientWidth - 4)  x = param.point.x - chartTip.offsetWidth - margem;
+      if (y + chartTip.offsetHeight > chartBox.clientHeight - 4) y = param.point.y - chartTip.offsetHeight - margem;
+      chartTip.style.left = Math.max(4, x) + "px";
+      chartTip.style.top  = Math.max(4, y) + "px";
+    });
+  }
+
+  function renderChart(rows){
+    ensureChart();
+
+    const asc = [...rows].sort((a,b) => a.date - b.date);
+    // tempos únicos e crescentes (exigência do lightweight-charts)
+    const data = [];
+    for (const r of asc){
+      const t = toYMD(r.date);
+      if (data.length && data[data.length-1].time === t) data[data.length-1].value = r.value;
+      else data.push({ time: t, value: r.value });
+    }
+
+    // Série com negativos vira "baseline": positivo teal, negativo laranja
+    const tipo = data.some(p => p.value < 0) ? "baseline" : "area";
+    if (lwSeries && lwSeriesTipo !== tipo){
+      lwChart.removeSeries(lwSeries);
+      lwSeries = null;
+    }
+    if (!lwSeries){
+      lwSeries = (tipo === "baseline")
+        ? lwChart.addBaselineSeries({
+            baseValue: { type: "price", price: 0 },
+            topLineColor: "#009B9B",
+            topFillColor1: "rgba(0,155,155,.30)",
+            topFillColor2: "rgba(0,155,155,.03)",
+            bottomLineColor: "#F99D33",
+            bottomFillColor1: "rgba(249,157,51,.05)",
+            bottomFillColor2: "rgba(249,157,51,.32)",
+            lineWidth: 2
+          })
+        : lwChart.addAreaSeries({
+            lineColor: "#009B9B",
+            topColor: "rgba(0,155,155,.32)",
+            bottomColor: "rgba(0,155,155,.02)",
+            lineWidth: 2
+          });
+      lwSeriesTipo = tipo;
+    }
+
+    lwSeries.setData(data);
+    lwChart.timeScale().fitContent();
+  }
+
+  function updateStats(rows){
+    const statMin = document.getElementById("statMin");
+    const statMax = document.getElementById("statMax");
+    const statMed = document.getElementById("statMed");
+    const statVar = document.getElementById("statVar");
+    const statVarPill = document.getElementById("statVarPill");
+
+    if (!rows.length){
+      statMin.textContent = statMax.textContent = statMed.textContent = statVar.textContent = "—";
+      statVarPill.classList.remove("good","bad");
+      return;
+    }
+    const vals = rows.map(r => r.value);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const med = vals.reduce((a,b) => a+b, 0) / vals.length;
+
+    const asc = [...rows].sort((a,b) => a.date - b.date);
+    const primeiro = asc[0].value, ultimo = asc[asc.length-1].value;
+    const varPct = primeiro !== 0 ? ((ultimo - primeiro) / Math.abs(primeiro)) * 100 : NaN;
+
+    statMin.textContent = fmtCompact(min);
+    statMax.textContent = fmtCompact(max);
+    statMed.textContent = fmtCompact(med);
+    statVar.textContent = Number.isFinite(varPct)
+      ? `${varPct >= 0 ? "+" : ""}${varPct.toLocaleString("pt-BR",{minimumFractionDigits:2, maximumFractionDigits:2})}%`
+      : "—";
+    statVarPill.classList.remove("good","bad");
+    statVarPill.classList.add(varPct >= 0 ? "good" : "bad");
+  }
+
+  function periodoAtivo(){
+    const ini = dtIni.value ? new Date(dtIni.value + "T00:00:00") : null;
+    const fim = dtFim.value ? new Date(dtFim.value + "T23:59:59") : null;
+    return { ini, fim };
+  }
+
+  function applyFilterAndSort(){
+    const { ini, fim } = periodoAtivo();
+
+    viewRows = rawRows.filter(r =>
+      (!ini || r.date >= ini) && (!fim || r.date <= fim)
+    );
+
+    const rows = [...viewRows];
+    rows.sort((a,b) => {
+      const av = (sortKey === "date") ? a.date.getTime() : a.value;
+      const bv = (sortKey === "date") ? b.date.getTime() : b.value;
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    viewRows = rows;
+
+    kpiPeriodo.textContent = (ini || fim)
+      ? `Período: ${ini ? ini.toLocaleDateString("pt-BR") : "início"} → ${fim ? fim.toLocaleDateString("pt-BR") : "hoje"}`
+      : "Período: completo";
+
+    renderTable(viewRows);
+    renderChart(viewRows);
+    updateStats(viewRows);
+
+    // Exportações seguem o filtro: sem linhas no período, nada de arquivo vazio
+    const vazio = viewRows.length === 0;
+    btnCsv.disabled = vazio;
+    btnXlsx.disabled = vazio;
+    document.getElementById("btnSap").disabled = vazio;
+  }
+
+  function toCsv(rows){
+    const lines = ["data;valor"];
+    for (const r of rows){
+      const v = r.value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+      lines.push(`${r.dateStr};${v}`);
+    }
+    return lines.join("\n");
+  }
+
+  function downloadBlob(content, filename, mime){
+    const blob = new Blob([content], { type: mime });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function fileSlug(item){
+    return item.nome.replace(/[^\w\-]+/g, "_").replace(/_+/g, "_").slice(0, 60);
+  }
+
+  function sufixoPeriodo(){
+    const { ini, fim } = periodoAtivo();
+    if (!ini && !fim) return "";
+    const f = d => d ? `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}` : "x";
+    return `_${f(ini)}-${f(fim)}`;
+  }
+
+  async function loadSeries(){
+    const item = MAP[Number(sel.value)];
+    if (!item) return;
+    itemAtual = item;
+
+    btn.disabled = true;
+    btnCsv.disabled = true;
+    btnXlsx.disabled = true;
+    document.getElementById("btnSap").disabled = true;
+    statusEl.textContent = "Carregando...";
+    rawRows = [];
+    viewRows = [];
+    renderTable([]);
+    if (lwSeries) lwSeries.setData([]);
+    chartTip.style.display = "none";
+
+    try{
+      const rows = await fetchSerie(item, { recentes: false });
+
+      rawRows = rows;
+
+      sortKey = "date";
+      sortDir = "desc";
+
+      renderKPIs(rows, item);
+      applyFilterAndSort();
+
+      const desc = descDe(item);
+      const medida = medidaDe(item);
+      document.getElementById("sobreTexto").innerHTML =
+        `<div class="kpi-foot" style="margin:0 0 10px;">` +
+          `<span class="pill">Periodicidade: ${freqDe(item) || "—"}</span>` +
+          `<span class="pill">${item.unidade}</span>` +
+        `</div>` +
+        (medida ? `<p style="margin:0 0 8px;"><b>O que o número representa:</b> ${medida}</p>` : "") +
+        (desc ? `<p style="margin:0;">${desc}</p>` : "");
+      document.getElementById("cardSobre").hidden = !(desc || medida);
+
+      statusEl.textContent = `OK • ${item.nome}`;
+      // (CSV/Excel/SAP são habilitados pelo applyFilterAndSort, conforme o período filtrado)
+
+      localStorage.setItem("taxas_indices_last", itemId(item));
+    } catch(err){
+      statusEl.textContent = `Erro ao baixar: ${err.message}`;
+      renderKPIs([], item);
+    } finally{
+      btn.disabled = false;
+    }
+  }
+
+  // ---- Init select (agrupado por categoria) ----
+  const gruposSel = [...new Set(MAP.map(m => m.grupo))];
+  for (const g of gruposSel){
+    const og = document.createElement("optgroup");
+    og.label = g;
+    MAP.forEach((m, i) => {
+      if (m.grupo !== g) return;
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = m.nome;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  }
+
+  const last = localStorage.getItem("taxas_indices_last");
+  if (last){
+    const idx = MAP.findIndex(m => itemId(m) === last);
+    if (idx >= 0) sel.value = String(idx);
+  }
+
+  document.querySelectorAll("#tbl thead th").forEach(th => {
+    th.addEventListener("click", () => {
+      const k = th.dataset.k;
+      if (k === "date") {
+        if (sortKey === "date") sortDir = (sortDir === "asc") ? "desc" : "asc";
+        else { sortKey = "date"; sortDir = "desc"; }
+      } else {
+        if (sortKey === "value") sortDir = (sortDir === "asc") ? "desc" : "asc";
+        else { sortKey = "value"; sortDir = "desc"; }
+      }
+      applyFilterAndSort();
+    });
+  });
+
+  function marcarRng(qual){
+    document.querySelectorAll("#rngGroup .rng").forEach(b =>
+      b.classList.toggle("active", b.dataset.rng === qual));
+  }
+
+  dtIni.addEventListener("change", () => { marcarRng(null); applyFilterAndSort(); });
+  dtFim.addEventListener("change", () => { marcarRng(null); applyFilterAndSort(); });
+  btnLimparPeriodo.addEventListener("click", () => {
+    dtIni.value = "";
+    dtFim.value = "";
+    marcarRng("tudo");
+    applyFilterAndSort();
+  });
+
+  // Seletor de intervalo (estilo plataformas de mercado) — calcula a partir do último dado
+  document.querySelectorAll("#rngGroup .rng").forEach(b => {
+    b.addEventListener("click", () => {
+      if (!rawRows.length) return;
+      const qual = b.dataset.rng;
+      const ultimaData = rawRows.reduce((m, r) => r.date > m ? r.date : m, rawRows[0].date);
+      let ini = null;
+
+      if (qual === "tudo"){
+        dtIni.value = "";
+        dtFim.value = "";
+      } else {
+        const d = new Date(ultimaData);
+        if (qual === "1m")  d.setMonth(d.getMonth() - 1);
+        if (qual === "3m")  d.setMonth(d.getMonth() - 3);
+        if (qual === "6m")  d.setMonth(d.getMonth() - 6);
+        if (qual === "ytd") { d.setMonth(0); d.setDate(1); }
+        if (qual === "1a")  d.setFullYear(d.getFullYear() - 1);
+        if (qual === "5a")  d.setFullYear(d.getFullYear() - 5);
+        if (qual === "10a") d.setFullYear(d.getFullYear() - 10);
+        ini = d;
+        dtIni.value = toYMD(d);
+        dtFim.value = "";
+      }
+      marcarRng(qual);
+      applyFilterAndSort();
+    });
+  });
+
+  btn.addEventListener("click", loadSeries);
+
+  btnCsv.addEventListener("click", () => {
+    const item = MAP[Number(sel.value)];
+    const csv = toCsv(viewRows);
+    downloadBlob(csv, `taxas_${item.fonte}_${item.codigo}_${fileSlug(item)}${sufixoPeriodo()}.csv`, "text/csv;charset=utf-8");
+  });
+
+  btnXlsx.addEventListener("click", () => {
+    const item = MAP[Number(sel.value)];
+
+    const aoa = [["data","valor"]];
+    for (const r of viewRows) aoa.push([r.dateStr, r.value]);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "serie");
+    XLSX.writeFile(wb, `taxas_${item.fonte}_${item.codigo}_${fileSlug(item)}${sufixoPeriodo()}.xlsx`);
+  });
+
+  // ---- Boot: painel é a tela inicial ----
+  showView("painel");
+  carregarPainel();
+</script>
+</body>
+</html>
