@@ -171,6 +171,32 @@ export function parseCurveTable($: CheerioAPI): TableParse {
 }
 
 /**
+ * Resumo compacto do HTML para diagnosticar POR QUE a página não foi
+ * reconhecida. Vai anexado à mensagem do B3ParseError e, por consequência, é
+ * persistido em FetchLog.message — então o log de produção passa a distinguir
+ * as causas prováveis sem precisar de acesso à B3: um shell anti-bot moderno
+ * (foundation/dynatrace, sem tabela), um desafio Cloudflare (challenge=1), a
+ * tabela movida para um iframe (iframes>0) ou uma mudança de estrutura.
+ */
+function pageDiagnostics(html: string, $: CheerioAPI): string {
+  const low = html.toLowerCase()
+  const title = normalizeSpace($('title').first().text()).slice(0, 80)
+  const challenge =
+    low.includes('just a moment') ||
+    low.includes('cf-mitigated') ||
+    low.includes('attention required') ||
+    low.includes('enable javascript and cookies')
+  const marks =
+    `len=${html.length} tables=${$('table').length} iframes=${$('iframe').length} ` +
+    `selects=${$('select').length} challenge=${challenge ? 1 : 0} ` +
+    `foundation=${low.includes('foundation') ? 1 : 0} ` +
+    `dynatrace=${low.includes('ruxitagentjs') || low.includes('dynatrace') ? 1 : 0}`
+  const iframeSrc = $('iframe').first().attr('src')
+  const extra = iframeSrc ? ` iframeSrc=${iframeSrc.slice(0, 120)}` : ''
+  return `diag[${marks}]${extra} title="${title}"`
+}
+
+/**
  * Interpreta a página completa. Lança B3ParseError quando o HTML não se parece
  * com a página de taxas (nem dropdown, nem tabela, nem mensagem de vazio) —
  * típico de bloqueio/erro do servidor — para que a captura seja repetida em vez
@@ -184,7 +210,8 @@ export function parseRatesPage(html: string): ParsedRatesPage {
 
   if (options.length === 0 && rows.length === 0 && !emptyReason) {
     throw new B3ParseError(
-      'Página da B3 não reconhecida (sem dropdown de taxas, sem tabela e sem mensagem de vazio).',
+      'Página da B3 não reconhecida (sem dropdown de taxas, sem tabela e sem mensagem de vazio). ' +
+        pageDiagnostics(html, $),
     )
   }
 

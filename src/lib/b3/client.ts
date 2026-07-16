@@ -55,8 +55,17 @@ export async function fetchRatesPageHtml(dateISO: string, rateCode?: string): Pr
       const res = await fetch(url, {
         headers: {
           'User-Agent': USER_AGENT,
-          Accept: 'text/html,application/xhtml+xml',
-          'Accept-Language': 'pt-BR,pt;q=0.9',
+          // Cabeçalhos de uma navegação de navegador real: alguns WAFs recusam
+          // requisições sem os Sec-Fetch-*/Upgrade-Insecure-Requests.
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Sec-Fetch-User': '?1',
+          Referer: 'https://www2.bmf.com.br/',
         },
         signal: AbortSignal.timeout(TIMEOUT_MS),
         cache: 'no-store',
