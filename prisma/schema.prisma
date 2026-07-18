@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Tipo de taxa referencial da B3 (código do parâmetro slcTaxa).
+/// A lista é descoberta automaticamente a partir do dropdown da página da B3
+/// a cada execução do job diário; `active` indica se o código ainda é listado.
+model RateType {
+  code        String       @id
+  name        String
+  active      Boolean      @default(true)
+  firstSeenAt DateTime     @default(now())
+  lastSeenAt  DateTime     @default(now())
+  points      CurvePoint[]
+  fetches     FetchLog[]
+}
+
+/// Um vértice da curva: taxa para um prazo (dias corridos) em uma data de referência.
+/// rate252: % a.a. base 252 dias úteis (composto) — coluna "252" da B3.
+/// rate360: % a.a. base 360 dias corridos (linear) — coluna "360" da B3.
+/// Cada curva publica uma ou ambas as bases; colunas ausentes ficam null.
+model CurvePoint {
+  rateCode String
+  date     DateTime @db.Date
+  days     Int
+  rate252  Decimal? @db.Decimal(12, 6)
+  rate360  Decimal? @db.Decimal(12, 6)
+  rateType RateType @relation(fields: [rateCode], references: [code], onDelete: Cascade)
+
+  @@id([rateCode, date, days])
+  @@index([rateCode, days, date])
+}
+
+/// Registro de cada tentativa de captura (taxa × data) — evita repetir
+/// consultas à B3 para datas sem dados (feriados) e dá visibilidade ao job.
+model FetchLog {
+  rateCode  String
+  date      DateTime    @db.Date
+  status    FetchStatus
+  points    Int         @default(0)
+  message   String?
+  fetchedAt DateTime    @default(now())
+  rateType  RateType    @relation(fields: [rateCode], references: [code], onDelete: Cascade)
+
+  @@id([rateCode, date])
+  @@index([status, date])
+}
+
+enum FetchStatus {
+  OK
+  EMPTY
+  ERROR
+}
