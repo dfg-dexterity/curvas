@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dexterity • BNDES UM</title>
+
+  <!-- Libs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root{
+      /* Dexterity palette */
+      --dx-offwhite:#F8F3E6;
+      --dx-dark:#494949;
+      --dx-teal:#009B9B;
+      --dx-purple:#715495;
+      --dx-orange:#F99D33;
+
+      /* Theme */
+      --bg: var(--dx-offwhite);
+      --text: #1f1f1f;
+      --muted: rgba(73,73,73,.72);
+      --line: rgba(73,73,73,.18);
+      --shadow: 0 12px 28px rgba(73,73,73,.18);
+      --radius: 14px;
+
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    body{
+      margin:0;
+      color: var(--text);
+      background:
+        radial-gradient(1100px 700px at 18% 0%,
+          rgba(0,155,155,.18) 0%,
+          rgba(113,84,149,.10) 35%,
+          rgba(248,243,230,1) 70%),
+        var(--bg);
+    }
+
+    .wrap{ max-width:1180px; margin:0 auto; padding:26px 18px 44px; }
+
+    header{ display:flex; gap:14px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; }
+    h1{ margin:0; font-size:20px; font-weight:900; letter-spacing:.2px; color: var(--dx-dark); }
+    .sub{ color: var(--muted); font-size:13px; margin-top:6px; }
+
+    .controls{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    select, input, button{
+      background: rgba(248,243,230,.9);
+      border: 1px solid rgba(73,73,73,.22);
+      color: var(--dx-dark);
+      padding: 10px 12px;
+      border-radius: 12px;
+      outline: none;
+    }
+    select{ min-width: 420px; }
+    input{ min-width: 260px; }
+    button{
+      cursor:pointer;
+      font-weight:900;
+      border: 1px solid rgba(0,155,155,.55);
+      background: linear-gradient(180deg, rgba(0,155,155,.18), rgba(0,155,155,.07));
+    }
+    button:hover{
+      border-color: rgba(113,84,149,.55);
+      background: linear-gradient(180deg, rgba(113,84,149,.16), rgba(113,84,149,.06));
+    }
+    button:disabled{ opacity:.55; cursor:not-allowed; }
+
+    .grid{ display:grid; grid-template-columns: repeat(12, 1fr); gap: 12px; margin-top: 16px; }
+
+    .card{
+      background: linear-gradient(180deg, rgba(248,243,230,.96), rgba(248,243,230,.86));
+      border: 1px solid rgba(73,73,73,.18);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .span4{ grid-column: span 4; }
+    .span8{ grid-column: span 8; }
+    .span12{ grid-column: span 12; }
+
+    .kpi-title{ color: var(--muted); font-size:12px; margin-bottom:6px; }
+    .kpi-value{ font-size:22px; font-weight:950; letter-spacing:.2px; color: var(--dx-dark); }
+    .kpi-foot{ margin-top:6px; color: var(--muted); font-size:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+    .pill{
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(73,73,73,.20);
+      background: rgba(248,243,230,.75);
+      color: rgba(73,73,73,.88);
+    }
+    .pill.good{
+      border-color: rgba(0,155,155,.55);
+      background: rgba(0,155,155,.10);
+      color: rgba(0,155,155,.95);
+    }
+    .pill.bad{
+      border-color: rgba(249,157,51,.60);
+      background: rgba(249,157,51,.12);
+      color: rgba(249,157,51,.95);
+    }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+    .status{ font-size:12px; color: var(--muted); }
+
+    table{ width:100%; border-collapse: collapse; }
+    thead th{
+      text-align:left;
+      font-size:12px;
+      color: var(--muted);
+      padding:10px 10px;
+      border-bottom: 1px solid var(--line);
+      cursor:pointer;
+      user-select:none;
+    }
+    tbody td{
+      padding:10px 10px;
+      border-bottom: 1px solid rgba(73,73,73,.10);
+      font-size:13px;
+      color: rgba(73,73,73,.92);
+    }
+    tbody tr:hover{ background: rgba(0,155,155,.06); }
+    .right{ text-align:right; }
+
+    @media (max-width: 980px){
+      .span4{ grid-column: span 12; }
+      .span8{ grid-column: span 12; }
+      select, input{ min-width:100%; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Dexterity • BNDES UM</h1>
+        <div class="sub">Selecione a sigla (código) e carregue a série UM do BNDES via proxy.</div>
+      </div>
+
+      <div class="controls">
+        <select id="sel"></select>
+        <button id="btn">Carregar</button>
+        <button id="btnCsv" disabled>Baixar CSV</button>
+        <button id="btnXlsx" disabled>Baixar Excel</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card span4">
+        <div class="kpi-title">Último valor</div>
+        <div class="kpi-value" id="kpiVal">—</div>
+        <div class="kpi-foot">
+          <span class="pill" id="kpiDate">Data: —</span>
+          <span class="pill" id="kpiCode">Código: —</span>
+        </div>
+      </div>
+
+      <div class="card span4">
+        <div class="kpi-title">Variação vs. anterior</div>
+        <div class="kpi-value" id="kpiDelta">—</div>
+        <div class="kpi-foot">
+          <span class="pill" id="kpiDeltaPct">—</span>
+          <span class="pill" id="kpiPrev">Anterior: —</span>
+        </div>
+      </div>
+
+      <div class="card span4">
+        <div class="kpi-title">Fonte</div>
+        <div class="kpi-value" style="font-size:16px;">BNDES – Moedas Contratuais</div>
+        <div class="kpi-foot">
+          <span class="pill">TXT público</span>
+          <span class="pill">Export CSV/XLSX</span>
+        </div>
+      </div>
+
+      <div class="card span12">
+        <div class="row">
+          <strong>Gráfico</strong>
+          <div class="row" style="justify-content:flex-end;">
+            <span class="status">Filtro (data):</span>
+            <input id="filter" placeholder="ex.: 2025 ou 12/2024" />
+            <span class="status" id="status">—</span>
+          </div>
+        </div>
+        <div style="margin-top:10px;">
+          <canvas id="chart" height="90"></canvas>
+        </div>
+      </div>
+
+      <div class="card span12">
+        <div class="row">
+          <strong>Tabela</strong>
+          <span class="status" id="count">—</span>
+        </div>
+
+        <div style="overflow:auto; margin-top:10px;">
+          <table id="tbl">
+            <thead>
+              <tr>
+                <th data-k="date">Data</th>
+                <th data-k="value" class="right">Valor</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Proxy (Vercel): /api/um?code=001 -> BNDES /Moedas/um001.txt
+  const BASE = "/api/um?code=";
+
+  // Lista completa (Sigla x Código) — conforme você enviou
+  const MAP = [
+    { sigla: "J.RES.635", codigo: "001" },
+    { sigla: "I.R.635", codigo: "002" },
+    { sigla: "T.JUROS BIRD", codigo: "003" },
+    { sigla: "T.JUROS FATC", codigo: "004" },
+    { sigla: "T.JUROS RES.635/87", codigo: "006" },
+    { sigla: "CUST ENDIV EM DOLAR", codigo: "007" },
+    { sigla: "JURO FIXO PRE-EMBAR", codigo: "008" },
+    { sigla: "TX. REFER. EM IPCA", codigo: "009" },
+    { sigla: "IPC-R", codigo: "010" },
+    { sigla: "TJ3 INTERPOLADA", codigo: "011" },
+    { sigla: "TJ6 INTERPOLADA", codigo: "012" },
+    { sigla: "TJ3BNDES", codigo: "013" },
+    { sigla: "TJ6BNDES", codigo: "014" },
+    { sigla: "Selic(015)", codigo: "015" },
+    { sigla: "TX RF IPCA ATE 24M", codigo: "016" },
+    { sigla: "TX RF IPCA 25 A 48M", codigo: "017" },
+    { sigla: "TX RF IPCA 49 A 72M", codigo: "018" },
+    { sigla: "TX RF IPCA ACIMA 72M", codigo: "019" },
+    { sigla: "URTR", codigo: "020" },
+    { sigla: "SOBRETAXA REF IPCA", codigo: "021" },
+    { sigla: "SOBRETAXA FIXA TJ3", codigo: "022" },
+    { sigla: "SOBRETAXA FIXA TJ6", codigo: "023" },
+    { sigla: "SOBRETAXA FIXA SELIC", codigo: "024" },
+    { sigla: "URTR15", codigo: "025" },
+    { sigla: "TRBT31", codigo: "026" },
+    { sigla: "URTJ", codigo: "027" },
+    { sigla: "TAXA FLAT", codigo: "028" },
+    { sigla: "URIPCTR", codigo: "029" },
+    { sigla: "TRBT07", codigo: "030" },
+    { sigla: "TX FIX USD ATE 24M", codigo: "032" },
+    { sigla: "TX FIX USD 25 A 48M", codigo: "033" },
+    { sigla: "TX FIX USD 49 A 72M", codigo: "034" },
+    { sigla: "TX FIX USD ACIMA 72M", codigo: "035" },
+    { sigla: "SBTX LIBOR3 ATE 24M", codigo: "036" },
+    { sigla: "TR1015", codigo: "037" },
+    { sigla: "SBTX LIBOR3 25 A 48M", codigo: "038" },
+    { sigla: "SBTX LIBOR3 49 A 72M", codigo: "039" },
+    { sigla: "URDTJ20", codigo: "040" },
+    { sigla: "SBTX LIBOR3 ACIMA72M", codigo: "041" },
+    { sigla: "OTNA", codigo: "043" },
+    { sigla: "URD16", codigo: "044" },
+    { sigla: "TAXA SELIC D-10", codigo: "052" },
+    { sigla: "TRBT01", codigo: "054" },
+    { sigla: "TRBT02", codigo: "055" },
+    { sigla: "TRBT03", codigo: "056" },
+    { sigla: "TRBT04", codigo: "057" },
+    { sigla: "TRBT05", codigo: "058" },
+    { sigla: "TRBT06", codigo: "059" },
+    { sigla: "TRBT18", codigo: "061" },
+    { sigla: "TRBT08", codigo: "062" },
+    { sigla: "TRBT09", codigo: "063" },
+    { sigla: "TRBT10", codigo: "064" },
+    { sigla: "TRBT11", codigo: "065" },
+    { sigla: "TRBT12", codigo: "066" },
+    { sigla: "TRBT13", codigo: "067" },
+    { sigla: "TRBT14", codigo: "068" },
+    { sigla: "TRBT15", codigo: "069" },
+    { sigla: "TRBT16", codigo: "071" },
+    { sigla: "TRBT17", codigo: "072" },
+    { sigla: "TRBT23", codigo: "073" },
+    { sigla: "TRBT19", codigo: "074" },
+    { sigla: "TRBT20", codigo: "075" },
+    { sigla: "TRBT21", codigo: "076" },
+    { sigla: "TRBT22", codigo: "077" },
+    { sigla: "TRBT24", codigo: "079" },
+    { sigla: "TRBT25", codigo: "080" },
+    { sigla: "TRBT26", codigo: "081" },
+    { sigla: "TRBT27", codigo: "082" },
+    { sigla: "TRBT28", codigo: "083" },
+    { sigla: "TRBT29", codigo: "084" },
+    { sigla: "TRBT30", codigo: "085" },
+    { sigla: "MILENIO 28", codigo: "087" },
+    { sigla: "TRIP01", codigo: "089" },
+    { sigla: "URTR01", codigo: "101" },
+    { sigla: "TRIP15", codigo: "105" },
+    { sigla: "BTN (P/ TR)", codigo: "107" },
+    { sigla: "TRIP25", codigo: "115" },
+    { sigla: "SELIC ACUM. * 1000", codigo: "141" },
+    { sigla: "SELIC ACUMULADA", codigo: "142" },
+    { sigla: "SELIC ACUM. D-2", codigo: "143" },
+    { sigla: "SELIC ACUM. D-2(75%)", codigo: "147" },
+    { sigla: "SELIC ACUM. D-2(90%)", codigo: "149" },
+    { sigla: "UMIPCA", codigo: "180" },
+    { sigla: "UMIPCA-M", codigo: "184" },
+    { sigla: "IPCA TLP", codigo: "185" },
+    { sigla: "TR", codigo: "200" },
+    { sigla: "FUNTTEL-DERI TR226", codigo: "202" },
+    { sigla: "IPCA", codigo: "236" },
+    { sigla: "UR IPC", codigo: "299" },
+    { sigla: "UR-CDI", codigo: "300" },
+    { sigla: "UMCDI", codigo: "301" },
+    { sigla: "UR-IPC PRO-RATA", codigo: "310" },
+    { sigla: "TJLP", codigo: "311" },
+    { sigla: "URTJLP", codigo: "314" },
+    { sigla: "TJ PRO-365", codigo: "318" },
+    { sigla: "TJ PRO-360", codigo: "319" },
+    { sigla: "URTJLP 365/366", codigo: "321" },
+    { sigla: "URINPC PRORATA(DC)", codigo: "328" },
+    { sigla: "URINPC", codigo: "329" },
+    { sigla: "URINPC ANT", codigo: "330" },
+    { sigla: "URBT01", codigo: "354" },
+    { sigla: "URBT02", codigo: "355" },
+    { sigla: "URBT03", codigo: "356" },
+    { sigla: "URBT04", codigo: "357" },
+    { sigla: "URBT05", codigo: "358" },
+    { sigla: "URBT06", codigo: "359" },
+    { sigla: "URBT07", codigo: "360" },
+    { sigla: "URBT08", codigo: "362" },
+    { sigla: "URBT09", codigo: "363" },
+    { sigla: "URBT10", codigo: "364" },
+    { sigla: "URBT11", codigo: "365" },
+    { sigla: "URBT12", codigo: "366" },
+    { sigla: "URBT13", codigo: "367" },
+    { sigla: "URBT14", codigo: "368" },
+    { sigla: "URBT15", codigo: "369" },
+    { sigla: "URBT16", codigo: "371" },
+    { sigla: "URBT17", codigo: "372" },
+    { sigla: "URBT18", codigo: "373" },
+    { sigla: "URBT19", codigo: "374" },
+    { sigla: "URBT20", codigo: "375" },
+    { sigla: "URBT21", codigo: "376" },
+    { sigla: "URBT22", codigo: "377" },
+    { sigla: "URBT23", codigo: "378" },
+    { sigla: "URBT24", codigo: "379" },
+    { sigla: "URBT25", codigo: "380" },
+    { sigla: "URBT26", codigo: "381" },
+    { sigla: "URBT27", codigo: "382" },
+    { sigla: "URBT28", codigo: "383" },
+    { sigla: "URBT29", codigo: "384" },
+    { sigla: "URBT30", codigo: "385" },
+    { sigla: "URBT31", codigo: "386" },
+    { sigla: "URIP01", codigo: "389" },
+    { sigla: "URIP02", codigo: "390" },
+    { sigla: "URIP03", codigo: "391" },
+    { sigla: "URIP05", codigo: "393" },
+    { sigla: "URIP09", codigo: "398" },
+    { sigla: "URIP10", codigo: "399" },
+    { sigla: "URIP11", codigo: "401" },
+    { sigla: "URIP13", codigo: "403" },
+    { sigla: "URIP15", codigo: "405" },
+    { sigla: "URIP17", codigo: "407" },
+    { sigla: "URIP20", codigo: "410" },
+    { sigla: "URIP26", codigo: "416" },
+    { sigla: "URIP27", codigo: "417" },
+    { sigla: "URIP30", codigo: "421" },
+    { sigla: "URD01", codigo: "427" },
+    { sigla: "URD02", codigo: "428" },
+    { sigla: "URD03", codigo: "429" },
+    { sigla: "URD04", codigo: "430" },
+    { sigla: "URD05", codigo: "431" },
+    { sigla: "URD06", codigo: "432" },
+    { sigla: "URD07", codigo: "433" },
+    { sigla: "URD08", codigo: "435" },
+    { sigla: "URD09", codigo: "436" },
+    { sigla: "URD10", codigo: "437" },
+    { sigla: "URD11", codigo: "438" },
+    { sigla: "URD12", codigo: "439" },
+    { sigla: "URD13", codigo: "440" },
+    { sigla: "URD14", codigo: "441" },
+    { sigla: "URD15", codigo: "443" },
+    { sigla: "URDTJ16", codigo: "444" },
+    { sigla: "URD17", codigo: "445" },
+    { sigla: "URD18", codigo: "446" },
+    { sigla: "URD19", codigo: "447" },
+    { sigla: "URD20", codigo: "448" },
+    { sigla: "URD21", codigo: "449" },
+    { sigla: "URD22", codigo: "451" },
+    { sigla: "URD23", codigo: "452" },
+    { sigla: "URD24", codigo: "453" },
+    { sigla: "URD25", codigo: "454" },
+    { sigla: "URD26", codigo: "455" },
+    { sigla: "URD27", codigo: "456" },
+    { sigla: "URD28", codigo: "457" },
+    { sigla: "URD29", codigo: "458" },
+    { sigla: "URD30", codigo: "459" },
+    { sigla: "URD31", codigo: "460" },
+    { sigla: "UR5015", codigo: "461" },
+    { sigla: "IP0915", codigo: "462" },
+    { sigla: "IP0917", codigo: "463" },
+    { sigla: "IP1015", codigo: "464" },
+    { sigla: "BT0915", codigo: "465" },
+    { sigla: "BT0917", codigo: "466" },
+    { sigla: "BT1015", codigo: "467" },
+    { sigla: "UR1516", codigo: "468" },
+    { sigla: "UR IGP-DI", codigo: "469" },
+    { sigla: "UR4015", codigo: "470" },
+    { sigla: "UR6015", codigo: "473" },
+    { sigla: "UR IGPM PRO-RATA", codigo: "484" },
+    { sigla: "URIGPM PRORATA M.ANT", codigo: "485" },
+    { sigla: "UR9515", codigo: "492" },
+    { sigla: "OFND-B", codigo: "495" },
+    { sigla: "OFND-I", codigo: "496" },
+    { sigla: "UR-UB", codigo: "497" },
+    { sigla: "URPND", codigo: "499" },
+    { sigla: "UR-UI", codigo: "500" },
+    { sigla: "URTJ01", codigo: "501" },
+    { sigla: "URTJ05", codigo: "505" },
+    { sigla: "URTJ09", codigo: "509" },
+    { sigla: "URTJ10", codigo: "510" },
+    { sigla: "URTJ20", codigo: "520" },
+    { sigla: "URTJ30", codigo: "530" },
+    { sigla: "URTJ15", codigo: "535" },
+    { sigla: "SELIC ACUM", codigo: "541" },
+    { sigla: "TAXA SELIC D-4", codigo: "544" },
+    { sigla: "URIGPM", codigo: "558" },
+    { sigla: "UMBNDES", codigo: "590" },
+    { sigla: "URIGPM PRO-RATA POS", codigo: "598" },
+    { sigla: "URIGPM LIM. 0,759%AM", codigo: "599" },
+    { sigla: "US$", codigo: "604" },
+    { sigla: "UMG$", codigo: "605" },
+    { sigla: "CAN$", codigo: "612" },
+    { sigla: "DM", codigo: "620" },
+    { sigla: "PESO URUGUAIO", codigo: "629" },
+    { sigla: "PESO URUGUAIO C", codigo: "630" },
+    { sigla: "LIB", codigo: "639" },
+    { sigla: "FFR", codigo: "655" },
+    { sigla: "SWFR", codigo: "663" },
+    { sigla: "YEN", codigo: "671" },
+    { sigla: "FLS", codigo: "701" },
+    { sigla: "TLP -TAXA PRE-FIXADA", codigo: "777" },
+    { sigla: "EUR", codigo: "795" },
+    { sigla: "EUR C", codigo: "796" },
+    { sigla: "EUR D-2", codigo: "797" },
+    { sigla: "US$ COMPRA", codigo: "833" },
+    { sigla: "US$ MEDIA", codigo: "835" },
+    { sigla: "BIRD", codigo: "867" }
+  ];
+
+  // ---- DOM ----
+  const sel = document.getElementById("sel");
+  const btn = document.getElementById("btn");
+  const btnCsv = document.getElementById("btnCsv");
+  const btnXlsx = document.getElementById("btnXlsx");
+  const filterEl = document.getElementById("filter");
+
+  const statusEl = document.getElementById("status");
+  const countEl = document.getElementById("count");
+
+  const kpiVal = document.getElementById("kpiVal");
+  const kpiDate = document.getElementById("kpiDate");
+  const kpiCode = document.getElementById("kpiCode");
+  const kpiDelta = document.getElementById("kpiDelta");
+  const kpiDeltaPct = document.getElementById("kpiDeltaPct");
+  const kpiPrev = document.getElementById("kpiPrev");
+
+  const tbody = document.querySelector("#tbl tbody");
+
+  let rawRows = [];
+  let viewRows = [];
+  let sortKey = "date";
+  let sortDir = "desc";
+  let chart;
+
+  function pad3(s){
+    s = String(s).trim();
+    return (/^\d+$/.test(s)) ? s.padStart(3, "0") : s;
+  }
+
+  function fmtNumber(n){
+    if (!Number.isFinite(n)) return "—";
+    return n.toLocaleString("pt-BR", { minimumFractionDigits: 6, maximumFractionDigits: 6 });
+  }
+
+  function parseBndesTxt(text){
+    // TXT do BNDES costuma vir em 1 linha: "data ; valor DD/MM/AAAA; 5,009785 ..."
+    const cleaned = text.replace(/\r?\n/g, " ").trim();
+    let t = cleaned.replace(/^data\s*;\s*valor\s*/i, "");
+
+    // BNDES separa o sinal do número com espaços nos negativos: "15/09/2025;-      0,110000"
+    const re = /(\d{2}\/\d{2}\/\d{4})\s*;\s*([+-]?\s*\d+(?:,\d+)?)/g;
+    const out = [];
+    let m;
+    while ((m = re.exec(t)) !== null){
+      const dateStr = m[1];
+      const valStr = m[2];
+      const value = Number(valStr.replace(/\s+/g, "").replace(",", "."));
+      const [dd, mm, yyyy] = dateStr.split("/").map(Number);
+      out.push({ dateStr, date: new Date(yyyy, mm-1, dd), value });
+    }
+    return out.sort((a,b) => b.date - a.date);
+  }
+
+  function renderKPIs(rows, sigla, cod3){
+    if (!rows.length){
+      kpiVal.textContent = "—";
+      kpiDate.textContent = "Data: —";
+      kpiCode.textContent = "Código: —";
+      kpiDelta.textContent = "—";
+      kpiDeltaPct.textContent = "—";
+      kpiPrev.textContent = "Anterior: —";
+      return;
+    }
+
+    const last = rows[0];
+    const prev = rows[1];
+
+    kpiVal.textContent = fmtNumber(last.value);
+    kpiDate.textContent = `Data: ${last.dateStr}`;
+    kpiCode.textContent = `Código: ${cod3} • ${sigla}`;
+
+    if (prev){
+      const delta = last.value - prev.value;
+      const pct = (prev.value !== 0) ? (delta / prev.value) * 100 : NaN;
+
+      kpiDelta.textContent = fmtNumber(delta);
+
+      kpiDeltaPct.classList.remove("good","bad");
+      if (Number.isFinite(delta) && delta >= 0) kpiDeltaPct.classList.add("good");
+      if (Number.isFinite(delta) && delta < 0) kpiDeltaPct.classList.add("bad");
+
+      kpiDeltaPct.textContent = Number.isFinite(pct)
+        ? `${pct.toLocaleString("pt-BR",{minimumFractionDigits:2, maximumFractionDigits:2})}%`
+        : "—";
+
+      kpiPrev.textContent = `Anterior: ${prev.dateStr} • ${fmtNumber(prev.value)}`;
+    } else {
+      kpiDelta.textContent = "—";
+      kpiDeltaPct.textContent = "—";
+      kpiPrev.textContent = "Anterior: —";
+    }
+  }
+
+  function renderTable(rows){
+    tbody.innerHTML = "";
+    const frag = document.createDocumentFragment();
+    for (const r of rows){
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td"); td1.textContent = r.dateStr;
+      const td2 = document.createElement("td"); td2.textContent = fmtNumber(r.value); td2.className = "right";
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      frag.appendChild(tr);
+    }
+    tbody.appendChild(frag);
+    countEl.textContent = `${rows.length} linhas`;
+  }
+
+  function renderChart(rows){
+    const asc = [...rows].sort((a,b) => a.date - b.date);
+    const labels = asc.map(r => r.dateStr);
+    const data = asc.map(r => r.value);
+
+    const ctx = document.getElementById("chart");
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "Valor",
+          data,
+          tension: 0.2,
+          pointRadius: 0,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { x: { ticks: { maxTicksLimit: 12 } } }
+      }
+    });
+  }
+
+  function applyFilterAndSort(){
+    const q = filterEl.value.trim().toLowerCase();
+
+    viewRows = !q
+      ? [...rawRows]
+      : rawRows.filter(r => r.dateStr.toLowerCase().includes(q));
+
+    // sort
+    const rows = [...viewRows];
+    rows.sort((a,b) => {
+      const av = (sortKey === "date") ? a.date.getTime() : a.value;
+      const bv = (sortKey === "date") ? b.date.getTime() : b.value;
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    viewRows = rows;
+
+    renderTable(viewRows);
+    renderChart(viewRows);
+  }
+
+  function toCsv(rows){
+    const lines = ["data;valor"];
+    for (const r of rows){
+      const v = r.value.toLocaleString("pt-BR", { minimumFractionDigits: 6, maximumFractionDigits: 6 });
+      lines.push(`${r.dateStr};${v}`);
+    }
+    return lines.join("\n");
+  }
+
+  function downloadBlob(content, filename, mime){
+    const blob = new Blob([content], { type: mime });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  async function loadSeries(){
+    const item = MAP[sel.selectedIndex];
+    const sigla = item.sigla;
+    const cod3 = pad3(item.codigo);
+
+    const fileUrl = `${BASE}${cod3}`;
+
+    btn.disabled = true;
+    btnCsv.disabled = true;
+    btnXlsx.disabled = true;
+    statusEl.textContent = "Carregando...";
+    rawRows = [];
+    viewRows = [];
+    renderTable([]);
+    if (chart) chart.destroy();
+
+    try{
+      const res = await fetch(fileUrl, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+
+      const rows = parseBndesTxt(text);
+      rawRows = rows;
+      viewRows = [...rows];
+
+      renderKPIs(rows, sigla, cod3);
+
+      // default sort
+      sortKey = "date";
+      sortDir = "desc";
+
+      applyFilterAndSort();
+
+      statusEl.textContent = `OK • ${sigla} (${cod3})`;
+      btnCsv.disabled = rows.length === 0;
+      btnXlsx.disabled = rows.length === 0;
+
+      // persist selection
+      localStorage.setItem("bndes_um_last_code", cod3);
+    } catch(err){
+      statusEl.textContent = `Erro ao baixar: ${err.message}`;
+    } finally{
+      btn.disabled = false;
+    }
+  }
+
+  // ---- Init select ----
+  MAP.sort((a,b) => a.sigla.localeCompare(b.sigla, "pt-BR"));
+  for (const m of MAP){
+    const opt = document.createElement("option");
+    opt.value = m.codigo;
+    opt.textContent = `${m.sigla} • ${pad3(m.codigo)}`;
+    sel.appendChild(opt);
+  }
+
+  // Restore last selection
+  const last = localStorage.getItem("bndes_um_last_code");
+  if (last){
+    const idx = MAP.findIndex(x => pad3(x.codigo) === pad3(last));
+    if (idx >= 0) sel.selectedIndex = idx;
+  }
+
+  // sort table by clicking headers
+  document.querySelectorAll("#tbl thead th").forEach(th => {
+    th.addEventListener("click", () => {
+      const k = th.dataset.k;
+      if (k === "date") {
+        if (sortKey === "date") sortDir = (sortDir === "asc") ? "desc" : "asc";
+        else { sortKey = "date"; sortDir = "desc"; }
+      } else {
+        if (sortKey === "value") sortDir = (sortDir === "asc") ? "desc" : "asc";
+        else { sortKey = "value"; sortDir = "desc"; }
+      }
+      applyFilterAndSort();
+    });
+  });
+
+  filterEl.addEventListener("input", applyFilterAndSort);
+  btn.addEventListener("click", loadSeries);
+
+  btnCsv.addEventListener("click", () => {
+    const item = MAP[sel.selectedIndex];
+    const cod3 = pad3(item.codigo);
+    const siglaSafe = item.sigla.replace(/[^\w\-]+/g, "_");
+    const csv = toCsv(viewRows);
+    downloadBlob(csv, `bndes_um_${cod3}_${siglaSafe}.csv`, "text/csv;charset=utf-8");
+  });
+
+  btnXlsx.addEventListener("click", () => {
+    const item = MAP[sel.selectedIndex];
+    const cod3 = pad3(item.codigo);
+    const siglaSafe = item.sigla.replace(/[^\w\-]+/g, "_");
+
+    const aoa = [["data","valor"]];
+    for (const r of viewRows) aoa.push([r.dateStr, r.value]);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "serie");
+    XLSX.writeFile(wb, `bndes_um_${cod3}_${siglaSafe}.xlsx`);
+  });
+
+  // Auto-load first/last selection
+  loadSeries();
+</script>
+</body>
+</html>

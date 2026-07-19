@@ -132,3 +132,28 @@ npm run build
 - Curvas descontinuadas (ex.: Libor) somem do dropdown da B3, ficam `active=false` e o
   histórico permanece consultável.
 - Dados de uso informativo, sem garantia — confira sempre na fonte oficial da B3.
+
+---
+
+## Apps auxiliares (mesma consolidação Vercel)
+
+Além do dashboard **Curvas B3** acima (deployado como `project-c9zq2`), este repositório
+reúne dois apps estáticos independentes, recuperados da conta Vercel hobby
+(`diegogozers-projects`) para consolidação na conta **dexterityit**. Cada um é um projeto
+Vercel próprio, sem build step e sem variáveis de ambiente:
+
+| Pasta | Projeto Vercel | O que é |
+|---|---|---|
+| `bndes-um/` | `bndes-um` | Séries UM (Moedas Contratuais) do BNDES: gráfico, tabela e export CSV/XLSX |
+| `taxas-indices/` | `taxas-indices` | Painel de taxas e índices (SELIC, CDI, IPCA, TLP‑IPCA/BNDES, SOFR e demais taxas do NY Fed), com export para SAP |
+
+Os `index.html` são cópias exatas dos deploys em produção. Os proxies em `api/`
+(Vercel Functions) foram reconstruídos a partir do contrato usado pelos frontends:
+
+- `api/um.js` — `/api/um?code=NNN` → `https://www.bndes.gov.br/Moedas/umNNN.txt` (texto puro)
+- `api/sgs.js` — `/api/sgs?codigo=NNN[&ultimos=K]` → API SGS do Banco Central (JSON)
+- `api/fed.js` — `/api/fed?tipo=sofr[&n=K]` → NY Fed Markets API (JSON `refRates`)
+
+Para recriar cada um na conta dexterityit: **Add New → Project → Import** deste
+repositório → **Root Directory** = `bndes-um` ou `taxas-indices` → Deploy. Com o
+repositório conectado, todo push atualiza os sites automaticamente.
