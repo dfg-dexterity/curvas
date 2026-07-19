@@ -83,6 +83,11 @@ function toUTC(dateISO: string): Date {
   return new Date(Date.UTC(y, m - 1, d))
 }
 
+/** Dias corridos entre duas datas ISO (positivo quando to > from). */
+export function calendarDaysBetween(fromISO: string, toISO: string): number {
+  return Math.round((toUTC(toISO).getTime() - toUTC(fromISO).getTime()) / 86_400_000)
+}
+
 /**
  * Dias úteis entre a data-base (exclusiva) e a data-base + dias corridos
  * (inclusiva) — a contagem DU do par (DC, DU) dos vértices padronizados da B3.

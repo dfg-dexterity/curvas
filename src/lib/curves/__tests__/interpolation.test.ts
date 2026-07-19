@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { businessDaysForCalendarDays, easterSunday, isBusinessDayBR } from '../calendar'
+import {
+  businessDaysForCalendarDays,
+  calendarDaysBetween,
+  easterSunday,
+  isBusinessDayBR,
+} from '../calendar'
 import {
   applyRounding,
   buildInterpolator,
@@ -27,6 +32,13 @@ describe('calendário ANBIMA (calendar.ts)', () => {
     expect(isBusinessDayBR(new Date(Date.UTC(2026, 5, 4)))).toBe(false) // Corpus Christi
     expect(isBusinessDayBR(new Date(Date.UTC(2026, 10, 20)))).toBe(false) // Consciência Negra
     expect(isBusinessDayBR(new Date(Date.UTC(2026, 6, 17)))).toBe(true) // sexta comum
+  })
+
+  it('conta dias corridos entre datas (inclusive sobre virada de ano)', () => {
+    expect(calendarDaysBetween('2026-07-16', '2026-07-19')).toBe(3)
+    expect(calendarDaysBetween('2026-12-30', '2027-01-02')).toBe(3)
+    expect(calendarDaysBetween('2026-07-16', '2026-07-16')).toBe(0)
+    expect(calendarDaysBetween('2026-07-19', '2026-07-16')).toBe(-3)
   })
 
   it('reproduz os pares (DC, DU) publicados pela B3 para 2026-07-16', () => {
