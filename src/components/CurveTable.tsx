@@ -77,6 +77,13 @@ export function CurveTable({
           <button type="button" onClick={downloadCsv} className="control cursor-pointer font-medium hover:opacity-80">
             Baixar CSV
           </button>
+          <a
+            href={`/api/export/sap?rates=${encodeURIComponent(rateCode)}&date=${encodeURIComponent(date)}`}
+            className="control cursor-pointer font-medium hover:opacity-80"
+            title="Arquivo de carga SAP: um registro por vértice, código com o dia (ex.: DIPRE001)"
+          >
+            Exportar SAP
+          </a>
         </div>
       </header>
 
