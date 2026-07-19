@@ -63,7 +63,6 @@ export async function GET(req: Request) {
   const date = url.searchParams.get('date') ?? previousBusinessDay(latestExpectedDataDate())
   const [y, m, d] = date.split('-')
   const br = `${d}/${m}/${y}`
-  const compact = `${y}${m}${d}`
 
   // 1. HTML da SPA -> lista de bundles JS.
   const spa = await fetchText(`${SPA_BASE}/referenceRatesPage/all?language=pt-br`, 'text/html')
@@ -78,33 +77,29 @@ export async function GET(req: Request) {
     }
   }
 
-  // 2. Varre os bundles atrás de "referenceRatesProxy": janelas de contexto
-  //    (mostram o call-site real) e caminhos completos.
+  // 2. Varre os bundles atrás dos CALL-SITES de GetList/GetDate: as janelas
+  //    mostram o objeto de parâmetros sendo montado antes do btoa(JSON).
   const windows: string[] = []
-  const paths: string[] = []
   for (const jsUrl of assets.slice(0, 4)) {
     const { text: js } = await fetchText(jsUrl, '*/*')
     if (!js) continue
-    const needle = /referenceRatesProxy/gi
+    const needle = /getList\(|GetList|getDate\(|GetDate|selectedProduct/g
     let m: RegExpExecArray | null
-    while ((m = needle.exec(js)) && windows.length < 12) {
-      windows.push(js.slice(Math.max(0, m.index - 280), m.index + 320).replace(/\s+/g, ' '))
+    while ((m = needle.exec(js)) && windows.length < 14) {
+      windows.push(js.slice(Math.max(0, m.index - 380), m.index + 420).replace(/\s+/g, ' '))
+      needle.lastIndex = m.index + 400 // pula janelas sobrepostas
     }
-    for (const mm of js.matchAll(/referenceRatesProxy\/[\w\-./${}?&=]+/g)) {
-      if (!paths.includes(mm[0])) paths.push(mm[0])
-    }
-    for (const mm of js.matchAll(/ReferenceRates[\w${}]*\.csv/g)) {
-      if (!paths.includes(mm[0])) paths.push(mm[0])
-    }
-    if (windows.length >= 12) break
+    if (windows.length >= 14) break
   }
 
-  // 3. Candidatos diretos (o que a experiência com outras SPAs da B3 sugere).
+  // 3. Tentativas diretas: payloads prováveis no padrão b64(JSON) das SPAs da B3.
+  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64')
   const candidates = [
-    `${PROXY_BASE}TaxasReferenciais?data=${encodeURIComponent(br)}&slcTaxa=PRE`,
-    `${PROXY_BASE}TaxasReferenciais?date=${date}&slcTaxa=PRE`,
-    `${PROXY_BASE}ReferenceRates_PRE_${compact}.csv`,
-    `${PROXY_BASE}download/ReferenceRates_PRE_${compact}.csv`,
+    `${PROXY_BASE}Search/GetDate/${b64({ language: 'pt-br' })}`,
+    `${PROXY_BASE}Search/GetList/${b64({ language: 'pt-br', date })}`,
+    `${PROXY_BASE}Search/GetList/${b64({ language: 'pt-br', date: br })}`,
+    `${PROXY_BASE}Search/GetList/${b64({ language: 'pt-br', date, product: 'PRE' })}`,
+    `${PROXY_BASE}Search/GetList/${b64({ language: 'pt-br', dateSelected: date, product: 'PRE' })}`,
   ]
   const calls: CallProbe[] = []
   for (const c of candidates) {
@@ -112,14 +107,13 @@ export async function GET(req: Request) {
   }
 
   const result = {
-    v: 2,
+    v: 3,
     ranAt: new Date().toISOString(),
     date,
     region: process.env.VERCEL_REGION ?? null,
     spaStatus: spa.res?.status ?? null,
     assets,
     windows,
-    paths,
     calls,
   }
 
