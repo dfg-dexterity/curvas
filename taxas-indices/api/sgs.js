@@ -7,12 +7,19 @@
 // mensais/anuais, que respondem normalmente) e só caímos no janelamento <= 10 anos
 // quando o BCB devolve 406.
 
-// fetch com deadline: aborta a requisição upstream antes do timeout da função.
-async function fetchWithTimeout(url, opts = {}, ms = 8000) {
+// fetch + leitura do corpo sob o MESMO deadline. O fetch resolve ao receber os
+// cabeçalhos, então o timer precisa seguir ativo enquanto o corpo é consumido —
+// um corpo travado prenderia a função até o timeout da Vercel. Retorna { r, body },
+// com body já lido (JSON) apenas quando a resposta é OK.
+async function fetchWithTimeout(url, { as, timeoutMs = 8000, ...opts } = {}) {
   const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), ms);
+  const t = setTimeout(() => ac.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...opts, signal: ac.signal });
+    const r = await fetch(url, { ...opts, signal: ac.signal });
+    const body = r.ok && as === "text" ? await r.text()
+               : r.ok && as === "json" ? await r.json()
+               : undefined;
+    return { r, body };
   } finally {
     clearTimeout(t);
   }
@@ -21,7 +28,9 @@ async function fetchWithTimeout(url, opts = {}, ms = 8000) {
 const pad2 = (v) => String(v).padStart(2, "0");
 
 // Busca o histórico completo em janelas de <= 10 anos e concatena (ascendente).
-// Janelas fora do intervalo da série devolvem 404/[] e são ignoradas.
+// Sequencial de propósito: o BCB recomenda no máximo ~5 req/s, e disparar todas as
+// janelas de uma vez (Promise.all) poderia levar a HTTP 429. Janelas fora do
+// intervalo da série devolvem 404/[] e são ignoradas.
 async function fetchHistoricoJanelado(base) {
   const hoje = new Date();
   const anoFim = hoje.getUTCFullYear();
@@ -34,23 +43,27 @@ async function fetchHistoricoJanelado(base) {
     janelas.push([`01/01/${ini}`, dataFinal]);
   }
 
-  const partes = await Promise.all(janelas.map(async ([di, df]) => {
+  const partes = [];
+  for (const [di, df] of janelas) {
     const url = `${base}?formato=json&dataInicial=${di}&dataFinal=${df}`;
-    const r = await fetchWithTimeout(url, { headers: { Accept: "application/json" } });
-    if (r.status === 404) return []; // período sem dados para a série
+    const { r, body } = await fetchWithTimeout(url, { as: "json", headers: { Accept: "application/json" } });
+    if (r.status === 404) continue; // período sem dados para a série
     if (!r.ok) {
       const e = new Error(`SGS respondeu HTTP ${r.status}`);
       e.status = r.status;
       throw e;
     }
-    const arr = await r.json();
-    return Array.isArray(arr) ? arr : [];
-  }));
+    if (Array.isArray(body)) partes.push(...body);
+  }
 
-  return partes.flat();
+  return partes;
 }
 
 module.exports = async (req, res) => {
+  // CORS em todas as respostas (inclusive 400/502/504), senão o browser mascara
+  // o erro real como "Failed to fetch" e o front não consegue exibi-lo.
+  res.setHeader("Access-Control-Allow-Origin", "*");
+
   const codigo = String((req.query && req.query.codigo) || "").trim();
   if (!/^\d+$/.test(codigo)) {
     res.status(400).json({ erro: "Parâmetro 'codigo' inválido (esperado número da série SGS)." });
@@ -70,16 +83,16 @@ module.exports = async (req, res) => {
   try {
     let dados;
     if (ultimos !== "") {
-      const r = await fetchWithTimeout(`${base}/ultimos/${ultimos}?formato=json`, { headers: { Accept: "application/json" } });
+      const { r, body } = await fetchWithTimeout(`${base}/ultimos/${ultimos}?formato=json`, { as: "json", headers: { Accept: "application/json" } });
       if (!r.ok) {
         res.status(r.status).json({ erro: `SGS respondeu HTTP ${r.status}` });
         return;
       }
-      dados = await r.json();
+      dados = body;
     } else {
-      const r = await fetchWithTimeout(`${base}?formato=json`, { headers: { Accept: "application/json" } });
+      const { r, body } = await fetchWithTimeout(`${base}?formato=json`, { as: "json", headers: { Accept: "application/json" } });
       if (r.ok) {
-        dados = await r.json();
+        dados = body;
       } else if (r.status === 406) {
         // Série diária: consulta aberta barrada pelo BCB -> janela em <= 10 anos.
         dados = await fetchHistoricoJanelado(base);
@@ -88,7 +101,6 @@ module.exports = async (req, res) => {
         return;
       }
     }
-    res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Cache-Control", "s-maxage=1800, stale-while-revalidate=86400");
     res.status(200).json(dados);
   } catch (err) {

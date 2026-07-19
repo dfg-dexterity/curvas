@@ -10,18 +10,29 @@ const GRUPOS = {
   obfr: "unsecured",
 };
 
-// fetch com deadline: aborta a requisição upstream antes do timeout da função.
-async function fetchWithTimeout(url, opts = {}, ms = 8000) {
+// fetch + leitura do corpo sob o MESMO deadline. O fetch resolve ao receber os
+// cabeçalhos, então o timer precisa seguir ativo enquanto o corpo é consumido —
+// um corpo travado prenderia a função até o timeout da Vercel. Retorna { r, body },
+// com body já lido (texto/JSON) apenas quando a resposta é OK.
+async function fetchWithTimeout(url, { as, timeoutMs = 8000, ...opts } = {}) {
   const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), ms);
+  const t = setTimeout(() => ac.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...opts, signal: ac.signal });
+    const r = await fetch(url, { ...opts, signal: ac.signal });
+    const body = r.ok && as === "text" ? await r.text()
+               : r.ok && as === "json" ? await r.json()
+               : undefined;
+    return { r, body };
   } finally {
     clearTimeout(t);
   }
 }
 
 module.exports = async (req, res) => {
+  // CORS em todas as respostas (inclusive 400/502/504), senão o browser mascara
+  // o erro real como "Failed to fetch" e o front não consegue exibi-lo.
+  res.setHeader("Access-Control-Allow-Origin", "*");
+
   const tipo = String((req.query && req.query.tipo) || "sofr").trim().toLowerCase();
   const grupo = GRUPOS[tipo];
   if (!grupo) {
@@ -44,15 +55,13 @@ module.exports = async (req, res) => {
     : `https://markets.newyorkfed.org/api/rates/${grupo}/${tipo}/search.json?startDate=2000-01-01`;
 
   try {
-    const r = await fetchWithTimeout(url, { headers: { Accept: "application/json" } });
+    const { r, body } = await fetchWithTimeout(url, { as: "json", headers: { Accept: "application/json" } });
     if (!r.ok) {
       res.status(r.status).json({ erro: `NY Fed respondeu HTTP ${r.status}` });
       return;
     }
-    const dados = await r.json();
-    res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Cache-Control", "s-maxage=1800, stale-while-revalidate=86400");
-    res.status(200).json(dados);
+    res.status(200).json(body);
   } catch (err) {
     if (err && err.name === "AbortError") {
       res.status(504).json({ erro: "Tempo esgotado ao consultar o NY Fed." });
