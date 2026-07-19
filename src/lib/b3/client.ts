@@ -165,27 +165,43 @@ function asRate(value: unknown): number | null {
   return null
 }
 
-function pick(row: Record<string, unknown>, keys: string[]): unknown {
-  for (const key of keys) {
-    if (row[key] !== undefined && row[key] !== null) return row[key]
-  }
-  return undefined
+export type RateBasis = '252' | '360'
+
+/**
+ * Base de juros convencional de cada taxa, herdada da tabela legada (que
+ * imprimia cada produto na sua coluna): pré/inflação/índices em % a.a. base
+ * 252 dias úteis (composto); cupons cambiais e moedas em % a.a. base 360 dias
+ * corridos (linear). A API moderna publica UMA taxa por vértice na base
+ * convencional do produto — confirmado em produção: PRE 14,15…14,43 (252),
+ * DOL -40,85…18,52 (360 linear, curtíssimo negativo típico do cupom).
+ */
+const BASIS_252 = new Set(['PRE', 'DIC', 'DIM', 'SLP', 'APR', 'TP', 'TFP', 'INP'])
+const BASIS_360 = new Set(['DOL', 'DOC', 'DCO', 'ACC', 'EUC', 'EUR', 'JPY', 'LIB', 'SDE', 'PTX'])
+
+export function basisFor(rateCode: string): { basis: RateBasis; known: boolean } {
+  const code = rateCode.toUpperCase()
+  if (BASIS_252.has(code)) return { basis: '252', known: true }
+  if (BASIS_360.has(code)) return { basis: '360', known: true }
+  return { basis: '252', known: false }
 }
 
 /**
- * Converte uma linha do GetList em vértice. A coluna de prazo chama
- * "description" na API (mesmo rótulo "Dias Corridos" da tabela); as taxas são
- * "day252"/"day360". Aceita variações e valores numéricos ou pt-BR em string.
+ * Converte uma linha do GetList em vértice. Na API moderna cada linha é um
+ * vértice único: "day252"/"day360" são o PRAZO em dias úteis/corridos,
+ * "description" é o nome da taxa e "rate" é a taxa na base convencional do
+ * produto. Mantemos "dias corridos" como chave (mesma semântica da tabela
+ * legada) e gravamos a taxa na coluna da base indicada.
  */
-export function mapApiRow(raw: unknown): CurveRow | null {
+export function mapApiRow(raw: unknown, basis: RateBasis): CurveRow | null {
   if (typeof raw !== 'object' || raw === null) return null
   const row = raw as Record<string, unknown>
-  const days = asDays(pick(row, ['description', 'days', 'day', 'vertex', 'prazo']))
-  if (days === null) return null
+  const days = asDays(row.day360 ?? row.days)
+  const rate = asRate(row.rate ?? row.taxa)
+  if (days === null || rate === null) return null
   return {
     days,
-    rate252: asRate(pick(row, ['day252', 'rate252', 'tax252', 'taxa252'])),
-    rate360: asRate(pick(row, ['day360', 'rate360', 'tax360', 'taxa360'])),
+    rate252: basis === '252' ? rate : null,
+    rate360: basis === '360' ? rate : null,
   }
 }
 
@@ -250,9 +266,14 @@ export async function fetchRatesPage(rateCode: string, dateISO: string): Promise
     return { options, rows: [], columns: { has252: false, has360: false }, warnings }
   }
 
+  const { basis, known } = basisFor(rateCode)
+  if (!known) {
+    warnings.push(`Base de juros desconhecida para ${rateCode}; taxa registrada como base 252.`)
+  }
+
   const byDays = new Map<number, CurveRow>()
   for (const item of raw) {
-    const row = mapApiRow(item)
+    const row = mapApiRow(item, basis)
     if (!row) continue
     if (byDays.has(row.days)) {
       warnings.push(`Prazo duplicado no GetList: ${row.days} dias; mantida a primeira ocorrência.`)

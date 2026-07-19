@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSearchUrl, mapApiRow } from '../client'
+import { basisFor, buildSearchUrl, mapApiRow } from '../client'
 
 describe('buildSearchUrl', () => {
   it('monta Search/<Método>/<base64(JSON)> como a SPA da B3', () => {
@@ -16,40 +16,40 @@ describe('buildSearchUrl', () => {
   })
 })
 
+describe('basisFor', () => {
+  it('classifica pré/inflação como 252 e cambiais como 360', () => {
+    expect(basisFor('PRE')).toEqual({ basis: '252', known: true })
+    expect(basisFor('DIC')).toEqual({ basis: '252', known: true })
+    expect(basisFor('DOL')).toEqual({ basis: '360', known: true })
+    expect(basisFor('EUC')).toEqual({ basis: '360', known: true })
+  })
+
+  it('assume 252 (com known=false) para códigos novos', () => {
+    expect(basisFor('XYZ')).toEqual({ basis: '252', known: false })
+  })
+})
+
 describe('mapApiRow', () => {
-  it('mapeia a linha da API (description = prazo, day252/day360 = taxas)', () => {
-    expect(mapApiRow({ description: '3', day252: '10,65', day360: '10,51' })).toEqual({
-      days: 3,
-      rate252: 10.65,
-      rate360: 10.51,
-    })
+  it('mapeia a linha real da API: prazo=day360 (dias corridos), taxa na base do produto', () => {
+    const row = { code: 'PRE', curve: 'T1', description: 'DI x pré', day252: 1, day360: 3, rate: '14,15' }
+    expect(mapApiRow(row, '252')).toEqual({ days: 3, rate252: 14.15, rate360: null })
   })
 
-  it('aceita milhar pt-BR no prazo e traço/vazio nas taxas', () => {
-    expect(mapApiRow({ description: '1.001', day252: '11,25', day360: '-' })).toEqual({
-      days: 1001,
-      rate252: 11.25,
-      rate360: null,
-    })
-    expect(mapApiRow({ description: '3.652', day252: '12,3456', day360: '' })).toEqual({
-      days: 3652,
-      rate252: 12.3456,
-      rate360: null,
-    })
+  it('grava na coluna 360 para produtos lineares (ex.: DOL, curtíssimo negativo)', () => {
+    const row = { code: 'DOL', curve: 'T1', description: 'DI x dólar', day252: 1, day360: 3, rate: '-40,85' }
+    expect(mapApiRow(row, '360')).toEqual({ days: 3, rate252: null, rate360: -40.85 })
   })
 
-  it('aceita valores numéricos crus (caso a API responda números)', () => {
-    expect(mapApiRow({ description: 30, day252: 13.15, day360: null })).toEqual({
-      days: 30,
-      rate252: 13.15,
-      rate360: null,
-    })
+  it('aceita prazo/taxa como número ou string pt-BR (inclusive milhar)', () => {
+    expect(mapApiRow({ day360: 12449, rate: '14,43' }, '252')).toEqual({ days: 12449, rate252: 14.43, rate360: null })
+    expect(mapApiRow({ day360: '12.449', rate: 14.43 }, '252')).toEqual({ days: 12449, rate252: 14.43, rate360: null })
   })
 
-  it('rejeita linhas sem prazo interpretável', () => {
-    expect(mapApiRow({ description: 'DIAS CORRIDOS', day252: '252', day360: '360' })).toBeNull()
-    expect(mapApiRow({ foo: 'bar' })).toBeNull()
-    expect(mapApiRow(null)).toBeNull()
-    expect(mapApiRow('x')).toBeNull()
+  it('rejeita linhas sem prazo ou sem taxa interpretáveis', () => {
+    expect(mapApiRow({ day360: 3 }, '252')).toBeNull()
+    expect(mapApiRow({ rate: '14,15' }, '252')).toBeNull()
+    expect(mapApiRow({ day360: 'abc', rate: '14,15' }, '252')).toBeNull()
+    expect(mapApiRow(null, '252')).toBeNull()
+    expect(mapApiRow('x', '252')).toBeNull()
   })
 })
