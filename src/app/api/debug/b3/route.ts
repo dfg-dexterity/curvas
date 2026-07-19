@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server'
-import {
-  buildSearchUrl,
-  fetchAvailableDates,
-  fetchProducts,
-  fetchRatesPage,
-} from '../../../../lib/b3/client'
+import { buildSearchUrl } from '../../../../lib/b3/client'
 import { latestExpectedDataDate, previousBusinessDay, toUTCDate } from '../../../../lib/dates'
 import { prisma } from '../../../../lib/db'
 
@@ -56,58 +51,64 @@ export async function GET(req: Request) {
   const date = url.searchParams.get('date') ?? previousBusinessDay(latestExpectedDataDate())
   const rate = (url.searchParams.get('rate') ?? 'PRE').toUpperCase()
 
-  // 1. Chamadas cruas (revelam status/corpo mesmo se o mapeamento falhar).
-  const raws = await Promise.all([
-    probeRaw(buildSearchUrl('GetProducts', { language: 'pt-br' })),
-    probeRaw(buildSearchUrl('GetDate', { language: 'pt-br', id: rate })),
-    probeRaw(
-      buildSearchUrl('GetList', { language: 'pt-br', id: rate, date, pageNumber: 1, pageSize: 5 }),
-    ),
-  ])
-
-  // 2. Cliente mapeado, na data pedida e na última data publicada.
-  const client: Record<string, unknown> = {}
-  try {
-    const products = await fetchProducts()
-    client.products = { count: products.length, first: products.slice(0, 6) }
-  } catch (err) {
-    client.productsError = err instanceof Error ? err.message : String(err)
+  // Analisa a semântica do campo "curve" do GetList: para cada produto-alvo,
+  // baixa uma amostra grande e resume valores distintos de curve com amostras
+  // do início/meio/fim de cada grupo.
+  interface ApiRow {
+    code?: unknown
+    curve?: unknown
+    description?: unknown
+    day252?: unknown
+    day360?: unknown
+    rate?: unknown
   }
-  let publishedDates: string[] = []
-  try {
-    publishedDates = await fetchAvailableDates(rate)
-    client.dates = { count: publishedDates.length, latest: publishedDates.slice(0, 5) }
-  } catch (err) {
-    client.datesError = err instanceof Error ? err.message : String(err)
-  }
-  for (const [label, d] of [
-    ['requested', date],
-    ['latestPublished', publishedDates[0]],
-  ] as Array<[string, string | undefined]>) {
-    if (!d) continue
+  async function analyze(id: string): Promise<Record<string, unknown>> {
+    const raw = await probeRaw(
+      buildSearchUrl('GetList', { language: 'pt-br', id, date, pageNumber: 1, pageSize: 500 }),
+    )
+    let parsed: { page?: { totalRecords?: number; totalPages?: number; pageSize?: number }; results?: ApiRow[] } | null =
+      null
+    const groups: Record<string, { count: number; sample: ApiRow[] }> = {}
     try {
-      const page = await fetchRatesPage(rate, d)
-      client[label] = {
-        date: d,
-        rows: page.rows.length,
-        columns: page.columns,
-        emptyReason: page.emptyReason,
-        warnings: page.warnings,
-        sample: page.rows.slice(0, 3),
+      const res = await fetch(raw.url, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(15_000),
+        cache: 'no-store',
+      })
+      parsed = await res.json()
+      for (const row of parsed?.results ?? []) {
+        const key = String(row.curve ?? '?')
+        groups[key] ??= { count: 0, sample: [] }
+        groups[key].count++
       }
-    } catch (err) {
-      client[`${label}Error`] = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+      for (const key of Object.keys(groups)) {
+        const rows = (parsed?.results ?? []).filter((r) => String(r.curve ?? '?') === key)
+        groups[key].sample = [rows[0], rows[Math.floor(rows.length / 2)], rows[rows.length - 1]].filter(Boolean)
+      }
+    } catch {
+      // mantém apenas o head cru
+    }
+    return {
+      id,
+      status: raw.status,
+      len: raw.len,
+      page: parsed?.page ?? null,
+      curves: groups,
+      headIfUnparsed: parsed ? undefined : raw.head,
     }
   }
 
+  const [pre, dol, dic] = await Promise.all([analyze('PRE'), analyze('DOL'), analyze('DIC')])
+
   const result = {
-    v: 4,
+    v: 5,
     ranAt: new Date().toISOString(),
     date,
     rate,
     region: process.env.VERCEL_REGION ?? null,
-    raws,
-    client,
+    pre,
+    dol,
+    dic,
   }
 
   // Persiste para leitura via SQL (melhor esforço).
