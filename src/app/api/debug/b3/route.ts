@@ -63,45 +63,61 @@ export async function GET(req: Request) {
     rate?: unknown
   }
   async function analyze(id: string): Promise<Record<string, unknown>> {
-    const raw = await probeRaw(
-      buildSearchUrl('GetList', { language: 'pt-br', id, date, pageNumber: 1, pageSize: 500 }),
-    )
-    let parsed: { page?: { totalRecords?: number; totalPages?: number; pageSize?: number }; results?: ApiRow[] } | null =
-      null
+    // pageSize > 120 faz a API devolver envelope vazio; paginamos com 120.
+    const all: ApiRow[] = []
+    let pageInfo: { totalRecords?: number; totalPages?: number } | null = null
+    let error: string | undefined
+    for (let pageNumber = 1; pageNumber <= 4; pageNumber++) {
+      const raw = await probeRaw(
+        buildSearchUrl('GetList', { language: 'pt-br', id, date, pageNumber, pageSize: 120 }),
+      )
+      if (raw.error || raw.status !== 200) {
+        error = raw.error ?? `HTTP ${raw.status}`
+        break
+      }
+      try {
+        const parsed = JSON.parse(
+          await (
+            await fetch(raw.url, {
+              headers: {
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                Accept: 'application/json, text/plain, */*',
+                Referer: 'https://sistemaswebb3-derivativos.b3.com.br/referenceRatesPage/',
+              },
+              signal: AbortSignal.timeout(15_000),
+              cache: 'no-store',
+            })
+          ).text(),
+        ) as { page?: { totalRecords?: number; totalPages?: number }; results?: ApiRow[] }
+        pageInfo = parsed?.page ?? pageInfo
+        const results = parsed?.results ?? []
+        all.push(...results)
+        const totalPages = parsed?.page?.totalPages ?? 1
+        if (results.length === 0 || pageNumber >= totalPages) break
+      } catch (err) {
+        error = err instanceof Error ? err.message : String(err)
+        break
+      }
+    }
+
     const groups: Record<string, { count: number; sample: ApiRow[] }> = {}
-    try {
-      const res = await fetch(raw.url, {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(15_000),
-        cache: 'no-store',
-      })
-      parsed = await res.json()
-      for (const row of parsed?.results ?? []) {
-        const key = String(row.curve ?? '?')
-        groups[key] ??= { count: 0, sample: [] }
-        groups[key].count++
-      }
-      for (const key of Object.keys(groups)) {
-        const rows = (parsed?.results ?? []).filter((r) => String(r.curve ?? '?') === key)
-        groups[key].sample = [rows[0], rows[Math.floor(rows.length / 2)], rows[rows.length - 1]].filter(Boolean)
-      }
-    } catch {
-      // mantém apenas o head cru
+    for (const row of all) {
+      const key = String(row.curve ?? '?')
+      groups[key] ??= { count: 0, sample: [] }
+      groups[key].count++
     }
-    return {
-      id,
-      status: raw.status,
-      len: raw.len,
-      page: parsed?.page ?? null,
-      curves: groups,
-      headIfUnparsed: parsed ? undefined : raw.head,
+    for (const key of Object.keys(groups)) {
+      const rows = all.filter((r) => String(r.curve ?? '?') === key)
+      groups[key].sample = [rows[0], rows[Math.floor(rows.length / 2)], rows[rows.length - 1]].filter(Boolean)
     }
+    return { id, fetched: all.length, page: pageInfo, curves: groups, error }
   }
 
   const [pre, dol, dic] = await Promise.all([analyze('PRE'), analyze('DOL'), analyze('DIC')])
 
   const result = {
-    v: 5,
+    v: 6,
     ranAt: new Date().toISOString(),
     date,
     rate,
