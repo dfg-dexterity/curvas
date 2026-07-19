@@ -167,13 +167,69 @@ export function curveConfigFor(rateCode: string): { config: CurveConfig; known: 
   return config ? { config, known: true } : { config: DEFAULT_CONFIG, known: false }
 }
 
+export interface InterpolationDetail {
+  /** Como o alvo foi resolvido em relação aos vértices publicados. */
+  mode: 'exact' | 'interior' | 'extrapolatedEnd' | 'extrapolatedStart' | 'flatEnd' | 'flatStart'
+  /** Vértices usados no cálculo (ausentes quando exact/flat). */
+  anterior?: Vertex
+  posterior?: Vertex
+  /** Peso do alvo no segmento: (pos − pos_ant)/(pos_post − pos_ant). */
+  weight?: number
+  /** Fatores de capitalização do método (anterior, posterior e interpolado). */
+  factors?: { anterior: number; posterior: number; interpolated: number }
+  /** Valor antes do arredondamento da curva. */
+  rawValue: number
+  /** Valor final, com o arredondamento da curva aplicado. */
+  value: number
+}
+
+/** Fatores intermediários de cada método, para a memória de cálculo. */
+function methodFactors(
+  method: InterpolationMethod,
+  a: Vertex,
+  b: Vertex,
+  w: number,
+): { anterior: number; posterior: number; interpolated: number } {
+  switch (method) {
+    case 'ff252': {
+      const fa = f252(a.rate, a.du)
+      const fb = f252(b.rate, b.du)
+      return { anterior: fa, posterior: fb, interpolated: fa * (fb / fa) ** w }
+    }
+    case 'ffLinear360': {
+      const fa = fLin(a.rate, a.dc)
+      const fb = fLin(b.rate, b.dc)
+      return { anterior: fa, posterior: fb, interpolated: fa * (fb / fa) ** w }
+    }
+    case 'exp360': {
+      const fa = f360(a.rate, a.dc)
+      const fb = f360(b.rate, b.dc)
+      return { anterior: fa, posterior: fb, interpolated: fa * (fb / fa) ** w }
+    }
+    case 'exp252': {
+      const fa = 1 + a.rate / 100
+      const fb = 1 + b.rate / 100
+      return { anterior: fa, posterior: fb, interpolated: fa * (fb / fa) ** w }
+    }
+    case 'price':
+      return { anterior: a.rate, posterior: b.rate, interpolated: a.rate * (b.rate / a.rate) ** w }
+    case 'linear360': {
+      const capA = (a.rate * a.dc) / 36_000
+      const capB = (b.rate * b.dc) / 36_000
+      return { anterior: capA, posterior: capB, interpolated: capA + (capB - capA) * w }
+    }
+  }
+}
+
 /**
- * Interpola a curva no ponto-alvo seguindo a configuração dada.
- * `vertices` deve estar ordenado por dc (o helper ordena por segurança) e sem
- * prazos duplicados. Alvo em um vértice exato retorna o valor publicado (com
- * arredondamento da curva).
+ * Interpola a curva no ponto-alvo e devolve também a memória de cálculo:
+ * vértices vizinhos usados, peso no segmento e fatores intermediários.
  */
-export function interpolateAt(vertices: Vertex[], target: TargetDay, config: CurveConfig): number {
+export function interpolateAtDetailed(
+  vertices: Vertex[],
+  target: TargetDay,
+  config: CurveConfig,
+): InterpolationDetail {
   if (vertices.length === 0) throw new Error('Curva sem vértices.')
   if (!(target.dc > 0) || !(target.du > 0)) {
     throw new Error('Alvo inválido: dc e du devem ser positivos (prazo à frente da data-base).')
@@ -184,46 +240,85 @@ export function interpolateAt(vertices: Vertex[], target: TargetDay, config: Cur
   const usesDu = config.method !== 'exp360' && config.method !== 'linear360'
   const pos = (v: Vertex | TargetDay) => (usesDu ? v.du : v.dc)
 
+  const finish = (
+    mode: InterpolationDetail['mode'],
+    rawValue: number,
+    segment?: { a: Vertex; b: Vertex },
+  ): InterpolationDetail => {
+    const detail: InterpolationDetail = {
+      mode,
+      rawValue,
+      value: applyRounding(rawValue, config.rounding),
+    }
+    if (segment) {
+      detail.anterior = segment.a
+      detail.posterior = segment.b
+      detail.weight = (pos(target) - pos(segment.a)) / (pos(segment.b) - pos(segment.a))
+      detail.factors = methodFactors(config.method, segment.a, segment.b, detail.weight)
+    }
+    return detail
+  }
+
   const exact = sorted.find((v) => v.dc === target.dc)
-  if (exact) return applyRounding(exact.rate, config.rounding)
+  if (exact) return finish('exact', exact.rate)
 
   const first = sorted[0]
   const last = sorted[sorted.length - 1]
 
   if (pos(target) < pos(first)) {
     // Antes do primeiro vértice: 1.4.7 (segmento inicial) ou 1.4.9 (flat).
-    if (config.extrapolateStart === 'none' || sorted.length < 2) {
-      if (config.extrapolateStart === 'flat' || sorted.length < 2) {
-        return applyRounding(first.rate, config.rounding)
-      }
+    if (config.extrapolateStart === 'flat' || sorted.length < 2) {
+      return finish('flatStart', first.rate)
+    }
+    if (config.extrapolateStart === 'none') {
       throw new Error(`Alvo (dc=${target.dc}) antes do primeiro vértice (dc=${first.dc}).`)
     }
-    if (config.extrapolateStart === 'flat') return applyRounding(first.rate, config.rounding)
-    return applyRounding(interp(sorted[0], sorted[1], target), config.rounding)
+    return finish('extrapolatedStart', interp(sorted[0], sorted[1], target), {
+      a: sorted[0],
+      b: sorted[1],
+    })
   }
 
   if (pos(target) > pos(last)) {
     // Após o último vértice: 1.4.6/1.4.10 (último segmento) ou 1.4.8 (flat).
     if (config.extrapolateEnd === 'flat' || sorted.length < 2) {
-      return applyRounding(last.rate, config.rounding)
+      return finish('flatEnd', last.rate)
     }
     if (config.extrapolateEnd === 'none') {
       throw new Error(`Alvo (dc=${target.dc}) após o último vértice (dc=${last.dc}).`)
     }
-    return applyRounding(interp(sorted[sorted.length - 2], last, target), config.rounding)
+    return finish('extrapolatedEnd', interp(sorted[sorted.length - 2], last, target), {
+      a: sorted[sorted.length - 2],
+      b: last,
+    })
   }
 
   for (let i = 1; i < sorted.length; i++) {
     if (pos(target) <= pos(sorted[i])) {
-      return applyRounding(interp(sorted[i - 1], sorted[i], target), config.rounding)
+      return finish('interior', interp(sorted[i - 1], sorted[i], target), {
+        a: sorted[i - 1],
+        b: sorted[i],
+      })
     }
   }
-  return applyRounding(last.rate, config.rounding)
+  return finish('flatEnd', last.rate)
+}
+
+/**
+ * Interpola a curva no ponto-alvo seguindo a configuração dada.
+ * `vertices` deve estar ordenado por dc (o helper ordena por segurança) e sem
+ * prazos duplicados. Alvo em um vértice exato retorna o valor publicado (com
+ * arredondamento da curva).
+ */
+export function interpolateAt(vertices: Vertex[], target: TargetDay, config: CurveConfig): number {
+  return interpolateAtDetailed(vertices, target, config).value
 }
 
 export interface CurveInterpolator {
   /** Interpola no prazo (dias corridos), calculando DU pelo calendário ANBIMA. */
   atCalendarDays(dc: number): number
+  /** Como atCalendarDays, mas com a memória de cálculo completa. */
+  explainAtCalendarDays(dc: number): InterpolationDetail & { target: TargetDay }
   config: CurveConfig
   /** true quando a curva tem configuração explícita no manual. */
   known: boolean
@@ -257,6 +352,10 @@ export function buildInterpolator(
     known,
     atCalendarDays(dc: number): number {
       return interpolateAt(vertices, { dc, du: duFor(dc) }, config)
+    },
+    explainAtCalendarDays(dc: number) {
+      const target = { dc, du: duFor(dc) }
+      return { ...interpolateAtDetailed(vertices, target, config), target }
     },
   }
 }

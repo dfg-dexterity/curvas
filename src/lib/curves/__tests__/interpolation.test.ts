@@ -10,6 +10,7 @@ import {
   buildInterpolator,
   curveConfigFor,
   interpolateAt,
+  interpolateAtDetailed,
   type CurveConfig,
   type Vertex,
 } from '../interpolation'
@@ -152,6 +153,38 @@ describe('interpolateAt — propriedades definidoras de cada fórmula do manual'
     const fwdSegment = (f252(b.rate, b.du) / f252(a.rate, a.du)) ** (1 / (b.du - a.du))
     const fwdBefore = (f252(a.rate, a.du) / f252(i, t.du)) ** (1 / (a.du - t.du))
     expect(fwdBefore).toBeCloseTo(fwdSegment, 12)
+  })
+})
+
+describe('interpolateAtDetailed — memória de cálculo', () => {
+  const config: CurveConfig = {
+    method: 'ff252',
+    extrapolateEnd: 'segment',
+    extrapolateStart: 'segment',
+    rounding: { mode: 'round', decimals: 3 },
+  }
+  const a: Vertex = { dc: 30, du: 21, rate: 13.65 }
+  const b: Vertex = { dc: 60, du: 42, rate: 13.9 }
+
+  it('expõe segmento, peso e fatores consistentes com o valor', () => {
+    const t = { dc: 45, du: 30 }
+    const d = interpolateAtDetailed([a, b], t, config)
+    expect(d.mode).toBe('interior')
+    expect(d.anterior).toEqual(a)
+    expect(d.posterior).toEqual(b)
+    expect(d.weight).toBeCloseTo((30 - 21) / (42 - 21), 12)
+    // O fator interpolado reanualizado reproduz o valor bruto.
+    const F = d.factors!.interpolated
+    expect((F ** (252 / t.du) - 1) * 100).toBeCloseTo(d.rawValue, 12)
+    expect(d.value).toBe(applyRounding(d.rawValue, config.rounding))
+  })
+
+  it('marca vértice exato e extrapolação de fim', () => {
+    expect(interpolateAtDetailed([a, b], { dc: 30, du: 21 }, config).mode).toBe('exact')
+    const beyond = interpolateAtDetailed([a, b], { dc: 90, du: 63 }, config)
+    expect(beyond.mode).toBe('extrapolatedEnd')
+    expect(beyond.anterior).toEqual(a)
+    expect(beyond.posterior).toEqual(b)
   })
 })
 

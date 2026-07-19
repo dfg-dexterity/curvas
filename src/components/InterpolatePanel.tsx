@@ -24,6 +24,10 @@ interface InterpolateResponse {
   extrapolated: boolean
   lastVertexDc: number
   value: number
+  explanation?: {
+    mode: string
+    steps: string[]
+  }
   error?: string
   message?: string
 }
@@ -114,18 +118,35 @@ export function InterpolatePanel({ rateCode, date }: Props) {
       )}
 
       {data && !loading && (
-        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 px-1">
-          <p className="text-2xl font-semibold">{fmtPct(data.value)}</p>
-          <p className="text-xs" style={{ color: 'var(--ink-2)' }}>
-            {data.rate.code} em {fmtDateBr(data.targetDate)} · base {data.basis === '252' ? '252 dias úteis' : '360 dias corridos'}
-          </p>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>
-            {data.dc} dias corridos · {data.du} dias úteis (ANBIMA) ·{' '}
-            {METHOD_LABELS[data.method] ?? data.method}
-            {data.extrapolated && ' · extrapolado além do último vértice'}
-            {!data.knownConfig && ' · curva sem regra específica no manual (usado Flat Forward 252)'}
-          </p>
-        </div>
+        <>
+          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 px-1">
+            <p className="text-2xl font-semibold">{fmtPct(data.value)}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-2)' }}>
+              {data.rate.code} em {fmtDateBr(data.targetDate)} · base {data.basis === '252' ? '252 dias úteis' : '360 dias corridos'}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              {data.dc} dias corridos · {data.du} dias úteis (ANBIMA) ·{' '}
+              {METHOD_LABELS[data.method] ?? data.method}
+              {data.extrapolated && ' · extrapolado além do último vértice'}
+              {!data.knownConfig && ' · curva sem regra específica no manual (usado Flat Forward 252)'}
+            </p>
+          </div>
+          {data.explanation && data.explanation.steps.length > 0 && (
+            <details className="mt-2 px-1">
+              <summary className="cursor-pointer text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
+                Como foi calculado
+              </summary>
+              <ol
+                className="mt-1.5 list-decimal space-y-1 pl-5 text-xs"
+                style={{ color: 'var(--ink-2)' }}
+              >
+                {data.explanation.steps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            </details>
+          )}
+        </>
       )}
     </section>
   )
