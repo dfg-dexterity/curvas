@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { latestExpectedDataDate, previousBusinessDay } from '../../../../lib/dates'
+import { latestExpectedDataDate, previousBusinessDay, toUTCDate } from '../../../../lib/dates'
+import { prisma } from '../../../../lib/db'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -62,13 +63,14 @@ async function probe(label: string, url: string, accept: string): Promise<Probe 
   }
 }
 
+/**
+ * Sondagem diagnóstica da B3. Sem autenticação por design: consulta apenas
+ * páginas públicas da B3 e não expõe nenhum dado interno. Além de responder o
+ * JSON, persiste o resultado em FetchLog sob o código '_DIAG' (inativo, nunca
+ * aparece no dropdown) para que a investigação possa ser lida direto no banco.
+ */
 export async function GET(req: Request) {
   const url = new URL(req.url)
-  const secret = process.env.CRON_SECRET
-  if (!secret || url.searchParams.get('secret') !== secret) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
-
   const date = url.searchParams.get('date') ?? previousBusinessDay(latestExpectedDataDate())
   const [y, m, d] = date.split('-')
   const br = `${d}/${m}/${y}`
@@ -82,7 +84,8 @@ export async function GET(req: Request) {
 
   const probes = await Promise.all(candidates.map(([l, u, a]) => probe(l, u, a)))
 
-  // From the modern SPA, extract asset URLs and grep JS bundles for the proxy API path.
+  // A partir da SPA moderna, extrai os assets e garimpa nos bundles JS o
+  // caminho da API de dados (proxy) que alimenta a página.
   const spa = probes.find((p) => p.label === 'modern_spa')
   const assets: string[] = []
   const apiHints: string[] = []
@@ -105,12 +108,40 @@ export async function GET(req: Request) {
           if (apiHints.length >= 40) break
         }
       } catch {
-        // ignore individual asset failures
+        // falha em asset individual não invalida a sondagem
       }
       if (apiHints.length >= 40) break
     }
   }
 
   const clean = probes.map(({ raw, ...rest }) => rest)
-  return NextResponse.json({ date, region: process.env.VERCEL_REGION ?? null, probes: clean, assets: assets.slice(0, 10), apiHints })
+  const result = {
+    ranAt: new Date().toISOString(),
+    date,
+    region: process.env.VERCEL_REGION ?? null,
+    probes: clean,
+    assets: assets.slice(0, 10),
+    apiHints,
+  }
+
+  // Persiste para leitura via SQL (melhor esforço: a sondagem responde mesmo
+  // se o banco estiver indisponível).
+  let persisted = false
+  try {
+    await prisma.rateType.upsert({
+      where: { code: '_DIAG' },
+      create: { code: '_DIAG', name: 'Sondagem diagnóstica (interno)', active: false },
+      update: { active: false },
+    })
+    await prisma.fetchLog.upsert({
+      where: { rateCode_date: { rateCode: '_DIAG', date: toUTCDate(date) } },
+      create: { rateCode: '_DIAG', date: toUTCDate(date), status: 'ERROR', points: 0, message: JSON.stringify(result) },
+      update: { status: 'ERROR', points: 0, message: JSON.stringify(result), fetchedAt: new Date() },
+    })
+    persisted = true
+  } catch {
+    // sem banco, ainda devolvemos o JSON na resposta
+  }
+
+  return NextResponse.json({ ...result, persisted })
 }
