@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Extensão Chrome: JS puro de navegador, fora do app Next.
+    "jira-quick-ticket-extension/**",
   ]),
 ]);
 

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Criar ticket no Jira</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="popup">
+    <header class="topbar">
+      <img src="icons/icon32.png" alt="" width="20" height="20" />
+      <span>Jira Quick Ticket</span>
+      <button id="btn-options" class="icon-btn" type="button" title="Configurações">⚙</button>
+    </header>
+
+    <main id="view-loading" class="view">
+      <p class="muted center">Carregando…</p>
+    </main>
+
+    <main id="view-setup" class="view" hidden>
+      <p>Para começar, informe suas credenciais do Jira (e-mail + API token).</p>
+      <button id="btn-open-options" class="primary" type="button">Configurar credenciais</button>
+    </main>
+
+    <main id="view-form" class="view" hidden>
+      <form id="ticket-form">
+        <label for="project-filter">Projeto</label>
+        <input id="project-filter" type="search" placeholder="Filtrar por nome ou chave…" autocomplete="off" />
+        <select id="project"></select>
+
+        <label for="issue-type">Tipo de ticket</label>
+        <select id="issue-type"></select>
+
+        <label for="summary">Resumo</label>
+        <input id="summary" type="text" maxlength="255" autocomplete="off" />
+
+        <label for="description">Descrição</label>
+        <textarea id="description" rows="6"></textarea>
+
+        <div id="form-error" class="error" hidden></div>
+
+        <div class="actions">
+          <button id="btn-refresh" class="ghost" type="button" title="Recarregar a lista de projetos do Jira">↻ Projetos</button>
+          <button id="btn-create" class="primary" type="submit">Criar ticket</button>
+        </div>
+      </form>
+    </main>
+
+    <main id="view-success" class="view" hidden>
+      <p class="success-label">Ticket criado!</p>
+      <a id="ticket-link" class="ticket-key" target="_blank" rel="noreferrer" href="#"></a>
+      <p id="ticket-summary" class="muted"></p>
+      <div class="actions">
+        <button id="btn-copy" class="ghost" type="button">Copiar chave</button>
+        <button id="btn-again" class="primary" type="button">Criar outro</button>
+      </div>
+    </main>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

@@ -123,6 +123,13 @@ npm run lint
 npm run build
 ```
 
+## Extensão Chrome: Jira Quick Ticket
+
+Este repositório também abriga a extensão [`jira-quick-ticket-extension/`](jira-quick-ticket-extension/README.md)
+(Manifest V3), que cria tickets no Jira a partir da página atual do navegador — escolha de projeto
+e tipo, criação via API e retorno do número do ticket (ex.: `TAD-123`). Substitui o antigo
+bookmarklet + webhook do Zapier. Instalação e detalhes no README da pasta.
+
 ## Limitações e notas
 
 - A B3 pode bloquear IPs de datacenter estrangeiros; rode o job/probe de um ambiente com

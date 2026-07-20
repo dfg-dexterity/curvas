@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Jira Quick Ticket — Configurações</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="options">
+    <main class="card">
+      <h1>Jira Quick Ticket — Configurações</h1>
+      <p class="muted">
+        Credenciais usadas para falar com a API do Jira Cloud. Ficam salvas apenas neste navegador
+        (<code>chrome.storage.local</code>) e são enviadas somente para o seu site Jira.
+      </p>
+
+      <label for="base-url">URL do Jira</label>
+      <input id="base-url" type="url" placeholder="https://suaempresa.atlassian.net" />
+
+      <label for="email">E-mail (conta Atlassian)</label>
+      <input id="email" type="email" placeholder="voce@empresa.com" autocomplete="off" />
+
+      <label for="token">API token</label>
+      <div class="token-row">
+        <input id="token" type="password" autocomplete="off" />
+        <button id="btn-toggle-token" class="ghost" type="button">Mostrar</button>
+      </div>
+      <p class="muted">
+        Gere um token em
+        <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noreferrer">
+          id.atlassian.com → Security → API tokens</a>.
+      </p>
+
+      <div id="status" class="status" hidden></div>
+
+      <div class="actions">
+        <button id="btn-test" class="ghost" type="button">Testar conexão</button>
+        <button id="btn-save" class="primary" type="button">Salvar</button>
+      </div>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

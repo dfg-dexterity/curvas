@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Jira Quick Ticket",
+  "version": "1.0.0",
+  "description": "Cria tickets no Jira a partir da página atual: escolha o projeto e o tipo e receba o número do ticket na hora.",
+  "action": {
+    "default_title": "Criar ticket no Jira",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://*.atlassian.net/*"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
