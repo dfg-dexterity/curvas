@@ -5,6 +5,7 @@ import { CurveChart, type CurveSeries } from '../components/CurveChart'
 import { CurveTable } from '../components/CurveTable'
 import { HistoryChart, type HistoryPoint } from '../components/HistoryChart'
 import { InterpolatePanel } from '../components/InterpolatePanel'
+import { MethodsInfo } from '../components/MethodsInfo'
 import { MAX_COMPARE, useVizTheme } from '../components/theme'
 import { availableBases, interpolateAt, type RateBase } from '../lib/curve-math'
 import { addDays, isBusinessDay, previousBusinessDay } from '../lib/dates'
@@ -385,6 +386,9 @@ export default function Home() {
         </div>
       )}
 
+      {/* Consulta principal: taxa interpolada em qualquer data (Manual B3) */}
+      <InterpolatePanel rateCode={rateCode} date={selections[0]?.date} />
+
       {/* Vértices-chave da data principal */}
       {primaryCurve && primaryCurve.points.length > 0 && (
         <section
@@ -462,9 +466,6 @@ export default function Home() {
         </header>
         <CurveChart series={series} base={effectiveBase} theme={theme} loading={curvesLoading} />
       </section>
-
-      {/* Interpolação em data customizada (Manual de Curvas da B3) */}
-      <InterpolatePanel rateCode={rateCode} date={selections[0]?.date} />
 
       {/* Histórico de um prazo + informações da taxa */}
       <div className="mb-4 grid gap-4 lg:grid-cols-2">
@@ -554,6 +555,11 @@ export default function Home() {
         />
       )}
 
+      {/* Referência: regra de interpolação de cada curva */}
+      <MethodsInfo
+        rateNames={Object.fromEntries((ratesResp?.rates ?? []).map((r) => [r.code, r.name]))}
+      />
+
       <footer className="mt-8 text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
         <p>
           Fonte: B3 — Taxas Referenciais BM&F (
@@ -566,6 +572,10 @@ export default function Home() {
             página oficial
           </a>
           ). Dados capturados automaticamente uma vez por dia útil; uso informativo, sem garantias.
+        </p>
+        <p className="mt-1">
+          A Dexterity não se responsabiliza pelos dados exibidos nem por decisões tomadas a partir
+          deles — favor consultar sempre os dados oficiais na B3.
         </p>
       </footer>
     </main>

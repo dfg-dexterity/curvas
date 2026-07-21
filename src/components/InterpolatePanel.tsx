@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { fmtDateBr, fmtPct } from '../lib/format'
 
-const METHOD_LABELS: Record<string, string> = {
+export const METHOD_LABELS: Record<string, string> = {
   exp252: 'Exponencial 252 (Manual 1.4.1)',
   ff252: 'Flat Forward 252 (Manual 1.4.2)',
   ffLinear360: 'Flat Forward 252, convenção linear (Manual 1.4.3)',
@@ -39,9 +39,9 @@ interface Props {
 }
 
 /**
- * "Data customizada": o usuário informa uma data-alvo (ex.: um vencimento) e o
- * painel mostra a taxa interpolada naquele prazo pela regra do Manual de
- * Curvas da B3, junto com a contagem de dias corridos/úteis usada.
+ * Consulta principal do dia a dia: o usuário informa uma data-alvo (ex.: um
+ * vencimento) e recebe a taxa interpolada naquele prazo pela regra do Manual
+ * de Curvas da B3, com a contagem DC/DU usada e a memória de cálculo.
  */
 export function InterpolatePanel({ rateCode, date }: Props) {
   const [target, setTarget] = useState('')
@@ -75,79 +75,101 @@ export function InterpolatePanel({ rateCode, date }: Props) {
   const error = result?.key === key ? result.error : undefined
 
   return (
-    <section className="card mb-4 px-4 py-4" aria-label="Interpolação em data customizada">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
+    <section
+      className="card mb-4 px-5 py-4"
+      style={{ borderColor: 'var(--accent)' }}
+      aria-label="Taxa em data customizada"
+    >
+      <div className="grid gap-x-8 gap-y-3 md:grid-cols-[minmax(15rem,18rem)_1fr]">
+        {/* Entrada */}
         <div>
           <h2 className="text-sm font-semibold">Taxa em data customizada</h2>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>
-            Informe um vencimento e a curva é interpolada pela regra do Manual de Curvas da B3.
+          <p className="mb-3 mt-0.5 text-xs" style={{ color: 'var(--muted)' }}>
+            Informe um vencimento e a curva {rateCode} é interpolada pela regra do Manual de Curvas
+            da B3 — inclusive além do último vértice.
+          </p>
+          <label className="block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
+            Data-alvo
+            <input
+              type="date"
+              value={target}
+              min={date ?? undefined}
+              onChange={(e) => setTarget(e.target.value)}
+              className="control mt-1 block w-full cursor-pointer px-3 py-2 text-sm"
+            />
+          </label>
+          <p className="mt-2 text-[11px] leading-snug" style={{ color: 'var(--muted)' }}>
+            Curva-base: {date ? fmtDateBr(date) : '—'}. Uso informativo — confira os dados oficiais
+            na B3 antes de decisões.
           </p>
         </div>
-        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--ink-2)' }}>
-          data-alvo
-          <input
-            type="date"
-            value={target}
-            min={date ? `${date.slice(0, 10)}` : undefined}
-            onChange={(e) => setTarget(e.target.value)}
-            className="chip cursor-pointer px-2 py-1"
-          />
-        </label>
-      </header>
 
-      {!target && (
-        <p className="px-1 text-xs" style={{ color: 'var(--muted)' }}>
-          Escolha uma data posterior a {date ? fmtDateBr(date) : 'à data da curva'} — pode ser além do
-          último vértice (extrapolação do último segmento).
-        </p>
-      )}
-      {target && !valid && (
-        <p className="px-1 text-xs" style={{ color: 'var(--muted)' }}>
-          A data-alvo precisa ser posterior à data da curva ({date ? fmtDateBr(date) : '—'}).
-        </p>
-      )}
-      {loading && (
-        <p className="px-1 text-xs" style={{ color: 'var(--muted)' }}>
-          calculando…
-        </p>
-      )}
-      {error && (
-        <p className="px-1 text-xs" role="alert" style={{ color: 'var(--danger, #b91c1c)' }}>
-          ⚠ {error}
-        </p>
-      )}
-
-      {data && !loading && (
-        <>
-          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 px-1">
-            <p className="text-2xl font-semibold">{fmtPct(data.value)}</p>
-            <p className="text-xs" style={{ color: 'var(--ink-2)' }}>
-              {data.rate.code} em {fmtDateBr(data.targetDate)} · base {data.basis === '252' ? '252 dias úteis' : '360 dias corridos'}
+        {/* Resultado */}
+        <div className="flex flex-col justify-center">
+          {!target && (
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>
+              Escolha uma data posterior a {date ? fmtDateBr(date) : 'à data da curva'} para ver a
+              taxa interpolada, a contagem de dias e a memória de cálculo.
             </p>
-            <p className="text-xs" style={{ color: 'var(--muted)' }}>
-              {data.dc} dias corridos · {data.du} dias úteis (ANBIMA) ·{' '}
-              {METHOD_LABELS[data.method] ?? data.method}
-              {data.extrapolated && ' · extrapolado além do último vértice'}
-              {!data.knownConfig && ' · curva sem regra específica no manual (usado Flat Forward 252)'}
-            </p>
-          </div>
-          {data.explanation && data.explanation.steps.length > 0 && (
-            <details className="mt-2 px-1">
-              <summary className="cursor-pointer text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
-                Como foi calculado
-              </summary>
-              <ol
-                className="mt-1.5 list-decimal space-y-1 pl-5 text-xs"
-                style={{ color: 'var(--ink-2)' }}
-              >
-                {data.explanation.steps.map((step) => (
-                  <li key={step}>{step}</li>
-                ))}
-              </ol>
-            </details>
           )}
-        </>
-      )}
+          {target && !valid && (
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>
+              A data-alvo precisa ser posterior à data da curva ({date ? fmtDateBr(date) : '—'}).
+            </p>
+          )}
+          {loading && (
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>
+              calculando…
+            </p>
+          )}
+          {error && (
+            <p className="text-sm" role="alert" style={{ color: 'var(--danger, #b91c1c)' }}>
+              ⚠ {error}
+            </p>
+          )}
+          {data && !loading && (
+            <>
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <p className="text-3xl font-semibold tracking-tight">{fmtPct(data.value)}</p>
+                <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+                  {data.rate.code} em {fmtDateBr(data.targetDate)}
+                </p>
+                <span className="chip text-[11px]" style={{ color: 'var(--ink-2)' }}>
+                  base {data.basis === '252' ? '252 du' : '360 dc'}
+                </span>
+                {data.extrapolated && (
+                  <span className="chip text-[11px]" style={{ color: 'var(--ink-2)' }}>
+                    extrapolada
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs" style={{ color: 'var(--muted)' }}>
+                {data.dc} dias corridos · {data.du} dias úteis (ANBIMA) ·{' '}
+                {METHOD_LABELS[data.method] ?? data.method}
+                {!data.knownConfig && ' · curva sem regra específica no manual (usado Flat Forward 252)'}
+              </p>
+              {data.explanation && data.explanation.steps.length > 0 && (
+                <details className="mt-2">
+                  <summary
+                    className="cursor-pointer text-xs font-medium"
+                    style={{ color: 'var(--ink-2)' }}
+                  >
+                    Como foi calculado
+                  </summary>
+                  <ol
+                    className="mt-1.5 list-decimal space-y-1 pl-5 text-xs"
+                    style={{ color: 'var(--ink-2)' }}
+                  >
+                    {data.explanation.steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </details>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </section>
   )
 }
