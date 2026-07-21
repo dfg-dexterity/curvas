@@ -1,5 +1,6 @@
-// Gera os PNGs dos ícones (quadrado azul arredondado com "+" branco), sem dependências.
-// Uso: node icons/generate.mjs   (a partir da pasta da extensão)
+// Gera os PNGs dos ícones a partir da marca da Dexterity: quatro "pétalas"
+// (três grafite, a superior direita teal) com estrela negativa ao centro.
+// Sem dependências. Uso: node icons/generate.mjs  (a partir da pasta da extensão)
 import { deflateSync } from 'node:zlib';
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -7,9 +8,109 @@ import { fileURLToPath } from 'node:url';
 
 const OUT_DIR = dirname(fileURLToPath(import.meta.url));
 const SIZES = [16, 32, 48, 128];
-const BG = [0, 82, 204]; // azul Jira #0052CC
-const FG = [255, 255, 255];
 const SS = 4; // supersampling para suavizar as bordas
+
+const DARK = [74, 75, 77]; // grafite da marca
+const TEAL = [31, 158, 151]; // teal da marca
+
+// ---------------------------------------------------------------------------
+// Geometria: espaço de desenho 100 × 80 (proporção da marca). A metade
+// inferior é o espelho vertical da superior; só a pétala sup. direita é teal.
+// ---------------------------------------------------------------------------
+
+const DESIGN_W = 100;
+const DESIGN_H = 80;
+
+function flattenCubic(from, c1, c2, to, steps = 48) {
+  const pts = [];
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const u = 1 - t;
+    pts.push([
+      u * u * u * from[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * to[0],
+      u * u * u * from[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * to[1],
+    ]);
+  }
+  return pts;
+}
+
+class Path {
+  constructor(x, y) {
+    this.pts = [[x, y]];
+  }
+  line(x, y) {
+    this.pts.push([x, y]);
+    return this;
+  }
+  cubic(c1x, c1y, c2x, c2y, x, y) {
+    const from = this.pts[this.pts.length - 1];
+    this.pts.push(...flattenCubic(from, [c1x, c1y], [c2x, c2y], [x, y]));
+    return this;
+  }
+  done() {
+    return this.pts; // o polígono fecha sozinho de volta ao ponto inicial
+  }
+}
+
+// Pétala superior esquerda ("bandeira"): topo reto, diagonal à esquerda,
+// canto inferior direito bem arredondado terminando na ponta.
+const flag = new Path(5, 4)
+  .line(50, 4)
+  .line(50, 20)
+  .cubic(50, 30.5, 40, 37.2, 28, 37.2)
+  .done();
+
+// Pétala superior direita ("folha"): esquerda vertical, curvão cheio no topo
+// encostando na borda direita e descendo até a ponta inferior direita.
+const leaf = new Path(55.5, 9)
+  .cubic(55.5, 5.5, 58, 4, 61.5, 4)
+  .line(73, 4)
+  .cubic(84, 5, 93, 18.5, 95, 37)
+  .cubic(83, 36.4, 70, 33.2, 63.5, 30.6)
+  .cubic(58.5, 29.5, 55.5, 27, 55.5, 22.5)
+  .done();
+
+const mirrorY = (pts) => pts.map(([x, y]) => [x, DESIGN_H - y]);
+
+function bboxOf(pts) {
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [x, y] of pts) {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  return [minX, minY, maxX, maxY];
+}
+
+const SHAPES = [
+  { color: DARK, pts: flag },
+  { color: TEAL, pts: leaf },
+  { color: DARK, pts: mirrorY(flag) },
+  { color: DARK, pts: mirrorY(leaf) },
+].map((shape) => ({ ...shape, bbox: bboxOf(shape.pts) }));
+
+function inPoly(pts, x, y) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i];
+    const [xj, yj] = pts[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function shapeAt(x, y) {
+  for (const shape of SHAPES) {
+    const [minX, minY, maxX, maxY] = shape.bbox;
+    if (x >= minX && x <= maxX && y >= minY && y <= maxY && inPoly(shape.pts, x, y)) return shape;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Rasterização e escrita do PNG
+// ---------------------------------------------------------------------------
 
 function crc32(buf) {
   let crc = 0xffffffff;
@@ -44,49 +145,43 @@ function png(size, pixels) {
   return Buffer.concat([signature, chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
-function inRoundedRect(x, y, size) {
-  const radius = size * 0.22;
-  const half = size / 2;
-  const dx = Math.max(Math.abs(x - half) - (half - radius), 0);
-  const dy = Math.max(Math.abs(y - half) - (half - radius), 0);
-  return dx * dx + dy * dy <= radius * radius;
-}
-
-function inPlus(x, y, size) {
-  const half = size / 2;
-  const arm = size * 0.3; // meia-extensão dos braços
-  const thick = size * 0.1; // meia-espessura
-  const dx = Math.abs(x - half);
-  const dy = Math.abs(y - half);
-  return (dx <= thick && dy <= arm) || (dy <= thick && dx <= arm);
-}
-
-for (const size of SIZES) {
+function render(size) {
+  const scale = (size * 0.96) / DESIGN_W;
+  const offX = size * 0.02;
+  const offY = (size - DESIGN_H * scale) / 2;
   const pixels = Buffer.alloc(size * size * 4);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      let bgHits = 0;
-      let fgHits = 0;
+      let hits = 0;
+      let r = 0;
+      let g = 0;
+      let b = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          const px = x + (sx + 0.5) / SS;
-          const py = y + (sy + 0.5) / SS;
-          if (inRoundedRect(px, py, size)) {
-            bgHits++;
-            if (inPlus(px, py, size)) fgHits++;
+          const dx = (x + (sx + 0.5) / SS - offX) / scale;
+          const dy = (y + (sy + 0.5) / SS - offY) / scale;
+          const shape = shapeAt(dx, dy);
+          if (shape) {
+            hits++;
+            r += shape.color[0];
+            g += shape.color[1];
+            b += shape.color[2];
           }
         }
       }
-      const alpha = bgHits / (SS * SS);
-      const mix = bgHits ? fgHits / bgHits : 0;
+      if (!hits) continue;
       const i = (y * size + x) * 4;
-      pixels[i] = Math.round(BG[0] + (FG[0] - BG[0]) * mix);
-      pixels[i + 1] = Math.round(BG[1] + (FG[1] - BG[1]) * mix);
-      pixels[i + 2] = Math.round(BG[2] + (FG[2] - BG[2]) * mix);
-      pixels[i + 3] = Math.round(alpha * 255);
+      pixels[i] = Math.round(r / hits);
+      pixels[i + 1] = Math.round(g / hits);
+      pixels[i + 2] = Math.round(b / hits);
+      pixels[i + 3] = Math.round((hits / (SS * SS)) * 255);
     }
   }
+  return pixels;
+}
+
+for (const size of SIZES) {
   const file = join(OUT_DIR, `icon${size}.png`);
-  writeFileSync(file, png(size, pixels));
+  writeFileSync(file, png(size, render(size)));
   console.log(`gerado ${file}`);
 }
