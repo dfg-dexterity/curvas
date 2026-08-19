@@ -8,8 +8,9 @@ import { InterpolatePanel } from '../components/InterpolatePanel'
 import { MethodsInfo } from '../components/MethodsInfo'
 import { MAX_COMPARE, useVizTheme } from '../components/theme'
 import { availableBases, interpolateAt, type RateBase } from '../lib/curve-math'
+import { fmtDelta, fmtValue, isRateKind, valueKindFor, valueUnitLabel } from '../lib/curves/value-kind'
 import { addDays, isBusinessDay, previousBusinessDay } from '../lib/dates'
-import { fmtDateBr, fmtDateShortBr, fmtDaysLabel, fmtPct } from '../lib/format'
+import { fmtDateBr, fmtDateShortBr, fmtDaysLabel } from '../lib/format'
 import type { CurvePayload } from '../lib/ingest'
 
 interface RateInfo {
@@ -48,6 +49,16 @@ const QUICK_COMPARES = [
   { label: '−5 anos', days: 1826 },
 ]
 
+/** Horizontes de exibição do gráfico principal (dias corridos; null = tudo). */
+const CHART_HORIZONS: Array<{ label: string; days: number | null }> = [
+  { label: '6 meses', days: 182 },
+  { label: '1 ano', days: 365 },
+  { label: '2 anos', days: 730 },
+  { label: '5 anos', days: 1826 },
+  { label: '10 anos', days: 3652 },
+  { label: 'Tudo', days: null },
+]
+
 const HISTORY_TERMS = [30, 91, 182, 365, 730, 1825, 3650]
 const HISTORY_WINDOWS = [
   { label: '6 meses', days: 182 },
@@ -71,6 +82,9 @@ export default function Home() {
   const [rateCode, setRateCode] = useState<string>('PRE')
   const [selections, setSelections] = useState<Selection[]>([])
   const [base, setBase] = useState<RateBase>('rate252')
+  // Horizonte do gráfico principal — por padrão até 1 ano (o miolo líquido da
+  // curva); "Tudo" mostra os ~34 anos publicados.
+  const [chartHorizon, setChartHorizon] = useState<number | null>(365)
 
   // Resultado de fetch "keyed": loading é derivado (chave desejada ≠ resolvida),
   // sem setState síncrono em effects, e o render anterior fica em quadro.
@@ -234,10 +248,14 @@ export default function Home() {
     setSelections((prev) => (prev[0]?.date === date ? prev : prev.filter((s) => s.date !== date)))
   }, [])
 
+  const valueKind = valueKindFor(rateCode)
+
   const series: CurveSeries[] = selections.map((s) => ({
     date: s.date,
     slot: s.slot,
-    points: curves[s.date]?.points ?? [],
+    points: (curves[s.date]?.points ?? []).filter(
+      (p) => chartHorizon === null || p.days <= chartHorizon,
+    ),
   }))
 
   const oldestCompare = useMemo(() => {
@@ -271,7 +289,16 @@ export default function Home() {
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Curvas de Juros — B3</h1>
+          <div className="flex items-center gap-2.5">
+            <span
+              aria-hidden
+              className="grid h-8 w-8 place-items-center rounded-lg text-sm font-bold text-white"
+              style={{ background: 'var(--accent)' }}
+            >
+              %
+            </span>
+            <h1 className="text-2xl font-semibold tracking-tight">Curvas de Juros — B3</h1>
+          </div>
           <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
             Taxas Referenciais BM&F, atualizadas diariamente e consultáveis para qualquer data desde 1995
           </p>
@@ -408,10 +435,10 @@ export default function Home() {
                 <p className="text-xs" style={{ color: 'var(--muted)' }}>
                   {term.label}
                 </p>
-                <p className="text-lg font-semibold">{fmtPct(value)}</p>
+                <p className="text-lg font-semibold tabular-nums">{fmtValue(valueKind, value)}</p>
                 {delta !== null && oldestCompare && (
                   <p className="text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                    {delta >= 0 ? '↑' : '↓'} {fmtPct(Math.abs(delta)).replace('%', ' pp')} vs{' '}
+                    {delta >= 0 ? '↑' : '↓'} {fmtDelta(valueKind, delta)} vs{' '}
                     {fmtDateShortBr(oldestCompare.date)}
                   </p>
                 )}
@@ -427,7 +454,9 @@ export default function Home() {
           <div>
             <h2 className="text-sm font-semibold">
               {selectedRate ? `${selectedRate.name} (${selectedRate.code})` : rateCode} — estrutura a termo,{' '}
-              {effectiveBase === 'rate252' ? '% a.a. base 252 dias úteis' : '% a.a. base 360 dias corridos'}
+              {isRateKind(valueKind)
+                ? valueUnitLabel(effectiveBase === 'rate252' ? 'rate252' : 'rate360')
+                : valueUnitLabel(valueKind)}
             </h2>
             {curvesLoading && (
               <p className="text-xs" style={{ color: 'var(--muted)' }}>
@@ -464,7 +493,37 @@ export default function Home() {
             ))}
           </ul>
         </header>
-        <CurveChart series={series} base={effectiveBase} theme={theme} loading={curvesLoading} />
+        <div
+          role="group"
+          aria-label="Horizonte do gráfico"
+          className="mb-1 flex flex-wrap items-center gap-1.5 px-1"
+        >
+          <span className="text-xs" style={{ color: 'var(--muted)' }}>
+            horizonte:
+          </span>
+          {CHART_HORIZONS.map((h) => (
+            <button
+              key={h.label}
+              type="button"
+              onClick={() => setChartHorizon(h.days)}
+              className="chip cursor-pointer hover:opacity-75"
+              style={
+                chartHorizon === h.days
+                  ? { borderColor: 'var(--accent)', color: 'var(--accent)', fontWeight: 600 }
+                  : { color: 'var(--ink-2)' }
+              }
+            >
+              {h.label}
+            </button>
+          ))}
+        </div>
+        <CurveChart
+          series={series}
+          base={effectiveBase}
+          theme={theme}
+          valueKind={valueKind}
+          loading={curvesLoading}
+        />
       </section>
 
       {/* Histórico de um prazo + informações da taxa */}
@@ -499,7 +558,7 @@ export default function Home() {
               </select>
             </div>
           </header>
-          <HistoryChart points={history} theme={theme} loading={historyLoading} />
+          <HistoryChart points={history} theme={theme} valueKind={valueKind} loading={historyLoading} />
           <p className="px-1 pb-2 pt-1 text-[11px]" style={{ color: 'var(--muted)' }}>
             Interpolação linear entre vértices; usa apenas datas já armazenadas no banco.
           </p>
@@ -531,16 +590,6 @@ export default function Home() {
               Carregando…
             </p>
           )}
-          <p
-            className="mt-4 border-t pt-3 text-xs leading-relaxed"
-            style={{ borderColor: 'var(--hairline)', color: 'var(--muted)' }}
-          >
-            Consultas a datas fora do banco são buscadas na hora direto da B3 e ficam salvas. Para
-            carregar longos períodos de uma vez:{' '}
-            <code className="rounded px-1" style={{ background: 'var(--page)' }}>
-              npm run job:backfill -- --from=2020-01-02
-            </code>
-          </p>
         </section>
       </div>
 

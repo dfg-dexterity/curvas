@@ -24,24 +24,24 @@ export interface VizTheme {
 
 export const LIGHT: VizTheme = {
   series: ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7', '#e34948'],
-  surface: '#fcfcfb',
-  page: '#f9f9f7',
-  ink: '#0b0b0b',
-  ink2: '#52514e',
-  muted: '#898781',
-  grid: '#e1e0d9',
-  axis: '#c3c2b7',
+  surface: '#ffffff',
+  page: '#f4f6f9',
+  ink: '#0e1320',
+  ink2: '#465065',
+  muted: '#7b8398',
+  grid: '#e7eaf1',
+  axis: '#c9cfdc',
 }
 
 export const DARK: VizTheme = {
   series: ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767'],
-  surface: '#1a1a19',
-  page: '#0d0d0d',
-  ink: '#ffffff',
-  ink2: '#c3c2b7',
-  muted: '#898781',
-  grid: '#2c2c2a',
-  axis: '#383835',
+  surface: '#141927',
+  page: '#0b0e15',
+  ink: '#f2f4f8',
+  ink2: '#b7becd',
+  muted: '#7e8699',
+  grid: '#232a3b',
+  axis: '#394155',
 }
 
 /** Máximo de curvas sobrepostas — limitado pelos slots categóricos validados. */

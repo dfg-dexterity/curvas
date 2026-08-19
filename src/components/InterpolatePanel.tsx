@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { fmtDateBr, fmtPct } from '../lib/format'
+import { fmtValue, isRateKind, valueChipLabel, valueKindFor } from '../lib/curves/value-kind'
+import { fmtDateBr } from '../lib/format'
 
 export const METHOD_LABELS: Record<string, string> = {
   exp252: 'Exponencial 252 (Manual 1.4.1)',
@@ -44,6 +45,7 @@ interface Props {
  * de Curvas da B3, com a contagem DC/DU usada e a memória de cálculo.
  */
 export function InterpolatePanel({ rateCode, date }: Props) {
+  const kind = valueKindFor(rateCode)
   const [target, setTarget] = useState('')
   const [result, setResult] = useState<{ key: string; data?: InterpolateResponse; error?: string } | null>(null)
 
@@ -85,8 +87,9 @@ export function InterpolatePanel({ rateCode, date }: Props) {
         <div>
           <h2 className="text-sm font-semibold">Taxa em data customizada</h2>
           <p className="mb-3 mt-0.5 text-xs" style={{ color: 'var(--muted)' }}>
-            Informe um vencimento e a curva {rateCode} é interpolada pela regra do Manual de Curvas
-            da B3 — inclusive além do último vértice.
+            Informe um vencimento e {isRateKind(kind) ? 'a taxa' : kind === 'price' ? 'o preço' : 'o valor'}{' '}
+            da curva {rateCode} é interpolado pela regra do Manual de Curvas da B3 — inclusive além
+            do último vértice.
           </p>
           <label className="block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
             Data-alvo
@@ -130,12 +133,14 @@ export function InterpolatePanel({ rateCode, date }: Props) {
           {data && !loading && (
             <>
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                <p className="text-3xl font-semibold tracking-tight">{fmtPct(data.value)}</p>
+                <p className="text-3xl font-semibold tracking-tight tabular-nums">
+                  {fmtValue(kind, data.value)}
+                </p>
                 <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
                   {data.rate.code} em {fmtDateBr(data.targetDate)}
                 </p>
                 <span className="chip text-[11px]" style={{ color: 'var(--ink-2)' }}>
-                  base {data.basis === '252' ? '252 du' : '360 dc'}
+                  {valueChipLabel(kind)}
                 </span>
                 {data.extrapolated && (
                   <span className="chip text-[11px]" style={{ color: 'var(--ink-2)' }}>

@@ -175,7 +175,7 @@ export type RateBasis = '252' | '360'
  * convencional do produto — confirmado em produção: PRE 14,15…14,43 (252),
  * DOL -40,85…18,52 (360 linear, curtíssimo negativo típico do cupom).
  */
-const BASIS_252 = new Set(['PRE', 'DIC', 'DIM', 'SLP', 'APR', 'TP', 'TFP', 'INP'])
+const BASIS_252 = new Set(['PRE', 'DIC', 'DIM', 'SLP', 'APR', 'TP', 'TFP', 'TR', 'DPL', 'INP', 'BRP'])
 const BASIS_360 = new Set(['DOL', 'DOC', 'DCO', 'ACC', 'EUC', 'EUR', 'JPY', 'LIB', 'SDE', 'PTX'])
 
 export function basisFor(rateCode: string): { basis: RateBasis; known: boolean } {

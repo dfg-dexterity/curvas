@@ -141,6 +141,8 @@ export const CURVE_CONFIGS: Record<string, CurveConfig> = {
   SLP: { method: 'ff252', extrapolateEnd: 'segment', extrapolateStart: 'segment', rounding: { mode: 'round', decimals: 3 } },
   DIC: { method: 'ff252', extrapolateEnd: 'segment', extrapolateStart: 'segment', rounding: { mode: 'round', decimals: 2 } },
   DIM: { method: 'ff252', extrapolateEnd: 'segment', extrapolateStart: 'segment', rounding: { mode: 'round', decimals: 2 } },
+  DPL: { method: 'ff252', extrapolateEnd: 'segment', extrapolateStart: 'segment', rounding: { mode: 'round', decimals: 2 } },
+  TR: { method: 'ff252', extrapolateEnd: 'segment', extrapolateStart: 'segment', rounding: { mode: 'round', decimals: 2 } },
   TFP: { method: 'ff252', extrapolateEnd: 'segment', extrapolateStart: 'segment', rounding: { mode: 'round', decimals: 2 } },
   TP: { method: 'ff252', extrapolateEnd: 'segment', extrapolateStart: 'segment', rounding: { mode: 'round', decimals: 2 } },
   APR: { method: 'ff252', extrapolateEnd: 'segment', extrapolateStart: 'segment', rounding: { mode: 'round', decimals: 3 } },
@@ -154,6 +156,7 @@ export const CURVE_CONFIGS: Record<string, CurveConfig> = {
   EUR: { method: 'price', extrapolateEnd: 'segment', extrapolateStart: 'segment', rounding: { mode: 'trunc', decimals: 7 } },
   JPY: { method: 'price', extrapolateEnd: 'segment', extrapolateStart: 'segment', rounding: { mode: 'trunc', decimals: 7 } },
   INP: { method: 'price', extrapolateEnd: 'flat', extrapolateStart: 'flat' },
+  BRP: { method: 'price', extrapolateEnd: 'flat', extrapolateStart: 'flat' },
 }
 
 const DEFAULT_CONFIG: CurveConfig = {
