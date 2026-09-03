@@ -11,6 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import { buildSharedGrid, resampleCurve, type RateBase } from '../lib/curve-math'
+import { fmtValue, isRateKind, type ValueKind } from '../lib/curves/value-kind'
 import { fmtDateShortBr, fmtDaysLabel } from '../lib/format'
 import type { CurvePointJSON } from '../lib/ingest'
 import type { VizTheme } from './theme'
@@ -29,8 +30,11 @@ const PLOT_BOTTOM = MARGIN.bottom + X_AXIS_HEIGHT
 
 const TERM_TICKS = [30, 91, 182, 365, 730, 1095, 1460, 1825, 2555, 3650, 4380, 5475, 7300, 9125, 10950]
 
-function fmtTick(value: number): string {
-  return value.toFixed(2).replace('.', ',')
+/** Formata o eixo Y conforme a classe de valor da curva. */
+function makeTickFormatter(kind: ValueKind): (value: number) => string {
+  if (kind === 'index') return (v) => Math.round(v).toLocaleString('pt-BR')
+  if (kind === 'price') return (v) => v.toLocaleString('pt-BR', { maximumFractionDigits: 4 })
+  return (v) => v.toFixed(2).replace('.', ',')
 }
 
 interface TooltipEntry {
@@ -43,10 +47,12 @@ function CurveTooltip({
   active,
   payload,
   label,
+  kind,
 }: {
   active?: boolean
   payload?: TooltipEntry[]
   label?: number | string
+  kind: ValueKind
 }) {
   if (!active || !payload?.length) return null
   const rows = payload
@@ -65,7 +71,7 @@ function CurveTooltip({
           <li key={String(entry.dataKey)} className="flex items-center gap-2">
             <span aria-hidden className="inline-block h-0.5 w-3" style={{ background: entry.color }} />
             <span className="font-semibold tabular-nums" style={{ color: 'var(--ink)' }}>
-              {fmtTick(entry.value as number)}%
+              {fmtValue(kind, entry.value as number)}
             </span>
             <span style={{ color: 'var(--ink-2)' }}>{fmtDateShortBr(String(entry.dataKey))}</span>
           </li>
@@ -85,11 +91,13 @@ export function CurveChart({
   series,
   base,
   theme,
+  valueKind = 'rate252',
   loading = false,
 }: {
   series: CurveSeries[]
   base: RateBase
   theme: VizTheme
+  valueKind?: ValueKind
   loading?: boolean
 }) {
   const { data, domain, endLabels, xMin, xMax } = useMemo(() => {
@@ -119,7 +127,7 @@ export function CurveChart({
     if (!Number.isFinite(min) || grid.length === 0) {
       return { data: [], domain: [0, 1] as [number, number], endLabels: [], xMin: 0, xMax: 0 }
     }
-    const pad = Math.max((max - min) * 0.06, 0.05)
+    const pad = Math.max((max - min) * 0.06, isRateKind(valueKind) ? 0.05 : Math.abs(max) * 0.001)
     const lo = min - pad
     const hi = max + pad
 
@@ -150,7 +158,7 @@ export function CurveChart({
       xMin: grid[0],
       xMax: grid[grid.length - 1],
     }
-  }, [series, base])
+  }, [series, base, valueKind])
 
   const visible = series.filter((s) => s.points.length > 0)
 
@@ -189,14 +197,14 @@ export function CurveChart({
           />
           <YAxis
             domain={domain}
-            tickFormatter={fmtTick}
+            tickFormatter={makeTickFormatter(valueKind)}
             tickLine={false}
             axisLine={false}
             tick={{ fill: theme.muted, fontSize: 11, fontVariant: 'tabular-nums' }}
-            width={52}
+            width={valueKind === 'index' ? 66 : 52}
           />
           <Tooltip
-            content={<CurveTooltip />}
+            content={<CurveTooltip kind={valueKind} />}
             cursor={{ stroke: theme.axis, strokeWidth: 1 }}
             isAnimationActive={false}
           />
