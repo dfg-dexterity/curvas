@@ -126,9 +126,9 @@ export default function PaginaCDI() {
   const imp = resultado?.impostos
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <main className="suit-musgo mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Correção pelo CDI</h1>
+        <h1 className="text-3xl">Correção pelo CDI</h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
           Contratos e aplicações remunerados por CDI (ou Selic) com dados diários oficiais do BCB —
           percentual do CDI, spread, IRRF e IOF regressivos, memória de cálculo e taxa prefixada
@@ -137,7 +137,7 @@ export default function PaginaCDI() {
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(19rem,23rem)_1fr]">
-        <form onSubmit={calcular} className="card h-fit space-y-3 px-5 py-4">
+        <form onSubmit={calcular} className="card card-suit h-fit space-y-3 px-5 py-4">
           <label className="block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
             Valor inicial (R$)
             <input type="number" step="any" min="0" value={valorInicial} onChange={(e) => setValorInicial(e.target.value)} className={inputCls} required />
@@ -164,7 +164,7 @@ export default function PaginaCDI() {
                 key={id}
                 type="button"
                 onClick={() => setTipoTaxa(id)}
-                className="flex-1 cursor-pointer rounded-md px-2 py-1 text-xs font-medium"
+                className="flex-1 cursor-pointer rounded-[3px] px-2 py-1 text-xs font-medium"
                 style={tipoTaxa === id ? { background: 'var(--accent)', color: '#fff' } : { color: 'var(--ink-2)' }}
               >
                 {label}
@@ -218,13 +218,13 @@ export default function PaginaCDI() {
           <button
             type="submit"
             disabled={carregando}
-            className="w-full cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="w-full cursor-pointer rounded-[4px] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
             style={{ background: 'var(--accent)' }}
           >
             {carregando ? 'Calculando…' : 'Calcular correção'}
           </button>
           {erro && (
-            <p className="text-xs" role="alert" style={{ color: 'var(--danger, #b91c1c)' }}>
+            <p className="text-xs" role="alert" style={{ color: 'var(--danger, #d4183d)' }}>
               ⚠ {erro}
             </p>
           )}
@@ -326,7 +326,7 @@ export default function PaginaCDI() {
                       </thead>
                       <tbody>
                         {memoriaVisivel.map((m) => (
-                          <tr key={m.date} style={{ borderTop: '1px solid var(--grid, #e7eaf1)' }}>
+                          <tr key={m.date} style={{ borderTop: '1px solid var(--rule, #ded8c6)' }}>
                             <td className="py-1 pr-3">{fmtDateBr(m.date)}</td>
                             <td className="py-1 pr-3 text-right">{nf4.format(m.taxaCDI)}</td>
                             <td className="py-1 pr-3 text-right">{m.fatorDiario.toFixed(8)}</td>
@@ -360,7 +360,7 @@ export default function PaginaCDI() {
                       </thead>
                       <tbody>
                         {resultado.memoriaFixa.map((m) => (
-                          <tr key={m.mes} style={{ borderTop: '1px solid var(--grid, #e7eaf1)' }}>
+                          <tr key={m.mes} style={{ borderTop: '1px solid var(--rule, #ded8c6)' }}>
                             <td className="py-1 pr-3">{nf2.format(m.mes)}</td>
                             <td className="py-1 pr-3 text-right">{nf4.format(m.taxa)}</td>
                             <td className="py-1 pr-3 text-right">{m.fator.toFixed(8)}</td>

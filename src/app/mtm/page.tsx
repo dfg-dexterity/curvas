@@ -57,7 +57,7 @@ function MtMDestaque({ valor, rotulo }: { valor: number; rotulo: string }) {
       </p>
       <p
         className="text-2xl font-semibold tabular-nums"
-        style={{ color: valor >= 0 ? 'var(--accent)' : 'var(--danger, #b91c1c)' }}
+        style={{ color: valor >= 0 ? 'var(--accent)' : 'var(--danger, #d4183d)' }}
       >
         {nfBRL.format(valor)}
       </p>
@@ -103,7 +103,7 @@ function PainelNDF() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(18rem,22rem)_1fr]">
-      <form onSubmit={submeter} className="card space-y-3 px-5 py-4">
+      <form onSubmit={submeter} className="card card-suit space-y-3 px-5 py-4">
         <div className="grid grid-cols-2 gap-3">
           <Campo label="Moeda">
             <select value={moeda} onChange={(e) => setMoeda(e.target.value)} className={inputCls}>
@@ -136,13 +136,13 @@ function PainelNDF() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="w-full cursor-pointer rounded-[4px] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: 'var(--accent)' }}
         >
           {loading ? 'Calculando…' : 'Calcular MtM'}
         </button>
         {error && (
-          <p className="text-xs" role="alert" style={{ color: 'var(--danger, #b91c1c)' }}>
+          <p className="text-xs" role="alert" style={{ color: 'var(--danger, #d4183d)' }}>
             ⚠ {error}
           </p>
         )}
@@ -237,7 +237,7 @@ function CamposPerna({
     : tipo === 'dolar' ? 'Cupom cambial (% a.a., linear 360)'
     : 'Spread (% a.a., opcional)'
   return (
-    <fieldset className="rounded-lg border px-3 py-2.5" style={{ borderColor: 'var(--grid, #e7eaf1)' }}>
+    <fieldset className="rounded-[4px] border px-3 py-2.5" style={{ borderColor: 'var(--rule, #ded8c6)' }}>
       <legend className="px-1 text-xs font-semibold">{titulo}</legend>
       <div className="grid grid-cols-2 gap-3">
         <Campo label="Indexador">
@@ -296,7 +296,7 @@ function PainelSwap() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(20rem,26rem)_1fr]">
-      <form onSubmit={submeter} className="card space-y-3 px-5 py-4">
+      <form onSubmit={submeter} className="card card-suit space-y-3 px-5 py-4">
         <Campo label="Valor nocional (R$)">
           <input type="number" step="any" min="0" value={vn} onChange={(e) => setVn(e.target.value)} className={inputCls} required />
         </Campo>
@@ -316,13 +316,13 @@ function PainelSwap() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="w-full cursor-pointer rounded-[4px] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: 'var(--accent)' }}
         >
           {loading ? 'Calculando…' : 'Calcular MtM'}
         </button>
         {error && (
-          <p className="text-xs" role="alert" style={{ color: 'var(--danger, #b91c1c)' }}>
+          <p className="text-xs" role="alert" style={{ color: 'var(--danger, #d4183d)' }}>
             ⚠ {error}
           </p>
         )}
@@ -423,7 +423,7 @@ function PainelOpcao() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(18rem,22rem)_1fr]">
-      <form onSubmit={submeter} className="card space-y-3 px-5 py-4">
+      <form onSubmit={submeter} className="card card-suit space-y-3 px-5 py-4">
         <div className="grid grid-cols-3 gap-3">
           <Campo label="Moeda">
             <select value={moeda} onChange={(e) => setMoeda(e.target.value)} className={inputCls}>
@@ -472,13 +472,13 @@ function PainelOpcao() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="w-full cursor-pointer rounded-[4px] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: 'var(--accent)' }}
         >
           {loading ? 'Calculando…' : 'Precificar / MtM'}
         </button>
         {error && (
-          <p className="text-xs" role="alert" style={{ color: 'var(--danger, #b91c1c)' }}>
+          <p className="text-xs" role="alert" style={{ color: 'var(--danger, #d4183d)' }}>
             ⚠ {error}
           </p>
         )}
@@ -580,9 +580,9 @@ const ABAS: Array<{ id: Aba; label: string }> = [
 export default function PaginaMtM() {
   const [aba, setAba] = useState<Aba>('ndf')
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <main className="suit-roxo mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Marcação a mercado</h1>
+        <h1 className="text-3xl">Marcação a mercado</h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
           NDF, swaps e opções de moeda OTC apreçados com as curvas da B3 armazenadas neste app —
           interpolação pelo Manual de Curvas, séries CDI/Selic/PTAX oficiais do BCB.

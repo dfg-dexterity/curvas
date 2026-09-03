@@ -126,7 +126,7 @@ export function InterpolatePanel({ rateCode, date }: Props) {
             </p>
           )}
           {error && (
-            <p className="text-sm" role="alert" style={{ color: 'var(--danger, #b91c1c)' }}>
+            <p className="text-sm" role="alert" style={{ color: 'var(--danger, #d4183d)' }}>
               ⚠ {error}
             </p>
           )}

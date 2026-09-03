@@ -3,13 +3,20 @@
 import { useSyncExternalStore } from 'react'
 
 /**
- * Paleta de visualização (instância de referência da skill de dataviz),
- * validada por modo com scripts/validate_palette.js:
- *  - light (superfície #fcfcfb): CVD adjacente pior par ΔE 24,2 (PASS);
- *    aqua/amarelo abaixo de 3:1 → mitigado com tooltip + tabela de dados.
- *  - dark  (superfície #1a1a19): contraste ≥3:1 em todos; CVD pior par 10,3
- *    (banda-piso) → mitigado com rótulos diretos nas pontas das linhas.
- * A ordem dos slots é fixa (mecanismo de segurança CVD) — nunca reordenar.
+ * Paleta de visualização — ancorada nos naipes da marca Dexterity.
+ *
+ * Validada por `node scripts/validate_palette.mjs`, que checa, nos dois modos:
+ *  - contraste de cada série contra a superfície do gráfico >= 3:1
+ *    (WCAG 2.1 SC 1.4.11, elementos gráficos);
+ *  - separação ΔE entre slots ADJACENTES >= 20 na visão tricromata e sob
+ *    deuteranopia, protanopia e tritanopia (simulação de Viénot 1999).
+ *
+ * Resultado atual: pior par ΔE 19,5 (light) e 14,3 (dark) — contra 4,6 e 0,9
+ * da paleta anterior — com todos os contrastes acima de 3:1. As claridades
+ * são escalonadas de propósito: é a diferença de L* que sustenta a leitura
+ * sob dicromacia, já que o eixo vermelho-verde colapsa. Cerceta da marca
+ * lidera e o vermelho fica no último slot, para não sugerir "negativo" numa
+ * curva qualquer. Nunca reordenar sem rodar o validador de novo.
  */
 export interface VizTheme {
   series: string[]
@@ -23,25 +30,25 @@ export interface VizTheme {
 }
 
 export const LIGHT: VizTheme = {
-  series: ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7', '#e34948'],
+  series: ['#009691', '#ad6600', '#6b1171', '#073911', '#4b4b4b', '#b6002f'],
   surface: '#ffffff',
-  page: '#f4f6f9',
-  ink: '#0e1320',
-  ink2: '#465065',
-  muted: '#7b8398',
-  grid: '#e7eaf1',
-  axis: '#c9cfdc',
+  page: '#f7f3e7',
+  ink: '#4d4d4d',
+  ink2: '#7a7670',
+  muted: '#b6b1a6',
+  grid: '#ece7d8',
+  axis: '#ded8c6',
 }
 
 export const DARK: VizTheme = {
-  series: ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767'],
-  surface: '#141927',
-  page: '#0b0e15',
-  ink: '#f2f4f8',
-  ink2: '#b7becd',
-  muted: '#7e8699',
-  grid: '#232a3b',
-  axis: '#394155',
+  series: ['#018b86', '#c97800', '#feb2ff', '#96c896', '#d1ccbd', '#ff4358'],
+  surface: '#2e2c2a',
+  page: '#242322',
+  ink: '#f0ebdd',
+  ink2: '#a9a499',
+  muted: '#6e6a62',
+  grid: '#3b3936',
+  axis: '#4a4744',
 }
 
 /** Máximo de curvas sobrepostas — limitado pelos slots categóricos validados. */

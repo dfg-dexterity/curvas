@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BrandMark } from '../components/BrandMark'
 import { CurveChart, type CurveSeries } from '../components/CurveChart'
 import { CurveTable } from '../components/CurveTable'
 import { HistoryChart, type HistoryPoint } from '../components/HistoryChart'
@@ -286,18 +287,12 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <main className="suit-cerceta mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex items-center gap-2.5">
-            <span
-              aria-hidden
-              className="grid h-8 w-8 place-items-center rounded-lg text-sm font-bold text-white"
-              style={{ background: 'var(--accent)' }}
-            >
-              %
-            </span>
-            <h1 className="text-2xl font-semibold tracking-tight">Curvas de Juros — B3</h1>
+            <BrandMark className="h-8 w-8 flex-none" />
+            <h1 className="text-3xl">Curvas de Juros — B3</h1>
           </div>
           <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
             Taxas Referenciais BM&F, atualizadas diariamente e consultáveis para qualquer data desde 1995
@@ -343,7 +338,7 @@ export default function Home() {
                 key={b}
                 type="button"
                 onClick={() => setBase(b)}
-                className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium"
+                className="cursor-pointer rounded-[3px] px-2.5 py-1 text-xs font-medium"
                 style={
                   effectiveBase === b
                     ? { background: 'var(--accent)', color: '#fff' }
@@ -449,7 +444,7 @@ export default function Home() {
       )}
 
       {/* Gráfico principal */}
-      <section className="card mb-4 px-4 pb-3 pt-4">
+      <section className="card card-suit mb-4 px-4 pb-3 pt-4">
         <header className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
           <div>
             <h2 className="text-sm font-semibold">

@@ -1,11 +1,19 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Barlow_Condensed, Figtree } from 'next/font/google'
 import { SiteNav } from '../components/SiteNav'
 import './globals.css'
 
-const inter = Inter({
+/* Fontes da marca Dexterity: condensada nos títulos, humanista no corpo. */
+const figtree = Figtree({
   subsets: ['latin'],
   variable: '--font-sans',
+  display: 'swap',
+})
+
+const barlowCondensed = Barlow_Condensed({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-display',
   display: 'swap',
 })
 
@@ -17,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={inter.variable}>
+    <html lang="pt-BR" className={`${figtree.variable} ${barlowCondensed.variable}`}>
       <body className="min-h-screen antialiased">
         <SiteNav />
         {children}

@@ -104,7 +104,7 @@ function FormContrato({
     onChange({ ...form, [k]: v })
 
   return (
-    <div className="card space-y-3 px-5 py-4" style={{ borderTop: `3px solid ${cor}` }}>
+    <div className="card card-suit space-y-3 px-5 py-4" style={{ ['--suit' as string]: cor }}>
       <label className="block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
         Nome do contrato
         <input value={form.nome} onChange={(e) => set('nome', e.target.value)} className={inputCls} />
@@ -176,7 +176,7 @@ function FormContrato({
         </label>
       )}
 
-      <fieldset className="rounded-lg border px-3 py-2.5" style={{ borderColor: 'var(--grid, #e7eaf1)' }}>
+      <fieldset className="rounded-[4px] border px-3 py-2.5" style={{ borderColor: 'var(--rule, #ded8c6)' }}>
         <legend className="px-1 text-xs font-semibold">Despesas de captação</legend>
         <div className="grid grid-cols-2 gap-3">
           <label className="block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
@@ -208,7 +208,7 @@ function FormContrato({
 function ResumoContrato({ r, cor }: { r: ResultadoEmprestimo; cor: string }) {
   const [aberto, setAberto] = useState(false)
   return (
-    <section className="card px-5 py-4" style={{ borderTop: `3px solid ${cor}` }}>
+    <section className="card card-suit px-5 py-4" style={{ ['--suit' as string]: cor }}>
       <h3 className="text-sm font-semibold">{r.parametros.nome}</h3>
       <dl className="mt-2 grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
         <div className="flex justify-between gap-4">
@@ -274,7 +274,7 @@ function ResumoContrato({ r, cor }: { r: ResultadoEmprestimo; cor: string }) {
             </thead>
             <tbody>
               {r.parcelas.map((p) => (
-                <tr key={p.numero} style={{ borderTop: '1px solid var(--grid, #e7eaf1)' }}>
+                <tr key={p.numero} style={{ borderTop: '1px solid var(--rule, #ded8c6)' }}>
                   <td className="py-1 pr-2">{p.numero}{p.carencia ? '·c' : ''}</td>
                   <td className="py-1 pr-2">{fmtDateBr(p.data)}</td>
                   <td className="py-1 pr-2 text-right">{nf2.format(p.taxaPeriodoAA)}</td>
@@ -292,8 +292,9 @@ function ResumoContrato({ r, cor }: { r: ResultadoEmprestimo; cor: string }) {
   )
 }
 
-const COR_A = '#2a78d6'
-const COR_B = '#eda100'
+/* Naipes da marca para distinguir os dois contratos comparados. */
+const COR_A = 'var(--cerceta)'
+const COR_B = 'var(--roxo)'
 
 export default function PaginaEmprestimos() {
   const [formA, setFormA] = useState(() => formPadrao('Contrato A'))
@@ -359,9 +360,9 @@ export default function PaginaEmprestimos() {
   const nomeB = resultados?.b?.parametros.nome ?? 'Contrato B'
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <main className="suit-amarelo mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Simulador de empréstimos</h1>
+        <h1 className="text-3xl">Simulador de empréstimos</h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
           Fluxo de caixa em datas reais com o CDI projetado pela curva PRE deste app, despesas de
           captação (IOF de crédito, TAC e outras), CET na convenção do BCB e comparação de dois
@@ -381,13 +382,13 @@ export default function PaginaEmprestimos() {
         <button
           type="submit"
           disabled={carregando}
-          className="cursor-pointer rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="cursor-pointer rounded-[4px] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: 'var(--accent)' }}
         >
           {carregando ? 'Simulando…' : comparar ? 'Simular e comparar' : 'Simular'}
         </button>
         {erro && (
-          <p className="text-sm" role="alert" style={{ color: 'var(--danger, #b91c1c)' }}>
+          <p className="text-sm" role="alert" style={{ color: 'var(--danger, #d4183d)' }}>
             ⚠ {erro}
           </p>
         )}
@@ -438,7 +439,7 @@ export default function PaginaEmprestimos() {
                   </thead>
                   <tbody>
                     {comp.criterios.map((c) => (
-                      <tr key={c.criterio} style={{ borderTop: '1px solid var(--grid, #e7eaf1)' }}>
+                      <tr key={c.criterio} style={{ borderTop: '1px solid var(--rule, #ded8c6)' }}>
                         <td className="py-1.5 pr-3">{c.criterio}</td>
                         <td className="py-1.5 pr-3 text-right">
                           {c.valorA === null ? '—' : c.criterio.includes('R$') ? nfBRL.format(c.valorA) : nf2.format(c.valorA)}
