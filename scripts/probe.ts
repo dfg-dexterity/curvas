@@ -1,16 +1,14 @@
 import './_env'
 import fs from 'node:fs'
-import { buildRatesUrl, fetchRatesPageHtml } from '../src/lib/b3/client'
-import { parseRatesPage } from '../src/lib/b3/parse'
+import { buildSearchUrl, fetchAvailableDates, fetchProducts, fetchRatesPage } from '../src/lib/b3/client'
 import { isValidISODate, latestExpectedDataDate } from '../src/lib/dates'
 
 /**
  * Diagnóstico da comunicação com a B3 — NÃO grava nada no banco.
- * Mostra o que o parser entendeu da página: taxas do dropdown, colunas
- * detectadas e primeiros vértices. Útil para verificar o ambiente e para
- * investigar mudanças de estrutura na página.
+ * Consulta a API moderna (referenceRatesProxy) e mostra o que o cliente
+ * entendeu: produtos, datas publicadas e primeiros vértices da curva.
  *
- * Uso: npm run probe -- [--date=AAAA-MM-DD] [--rate=PRE] [--save=pagina.html]
+ * Uso: npm run probe -- [--date=AAAA-MM-DD] [--rate=PRE] [--save=curva.json]
  */
 function arg(name: string): string | undefined {
   const prefix = `--${name}=`
@@ -27,32 +25,37 @@ async function main() {
     process.exit(1)
   }
 
-  console.log(`URL: ${buildRatesUrl(date, rate)}\n`)
-  const html = await fetchRatesPageHtml(date, rate)
-  console.log(`HTML recebido: ${html.length} caracteres`)
-  if (save) {
-    fs.writeFileSync(save, html)
-    console.log(`Página salva em ${save}`)
-  }
-
-  const parsed = parseRatesPage(html)
-  console.log(`\nTaxas no dropdown (${parsed.options.length}):`)
-  for (const opt of parsed.options) console.log(`  ${opt.code.padEnd(6)} ${opt.name}`)
-
   console.log(
-    `\nColunas detectadas: 252=${parsed.columns.has252} 360=${parsed.columns.has360}` +
-      ` | vértices: ${parsed.rows.length}`,
+    `GetList: ${buildSearchUrl('GetList', { language: 'pt-br', id: rate, date, pageNumber: 1, pageSize: 120 })}\n`,
   )
-  if (parsed.emptyReason) console.log(`Mensagem de vazio: ${parsed.emptyReason}`)
-  if (parsed.warnings.length) console.log(`Avisos: ${parsed.warnings.join(' | ')}`)
+
+  const products = await fetchProducts()
+  console.log(`Produtos (${products.length}): ${products.map((p) => p.code).join(', ') || '(vazio)'}`)
+
+  const dates = await fetchAvailableDates(rate)
+  console.log(
+    `Datas publicadas p/ ${rate} (${dates.length}): ${dates.slice(0, 5).join(', ')}${dates.length > 5 ? '…' : ''}`,
+  )
+
+  const page = await fetchRatesPage(rate, date)
+  console.log(`\nCurva ${rate} em ${date}: ${page.rows.length} vértices`)
+  console.log(`Colunas detectadas: 252=${page.columns.has252} 360=${page.columns.has360}`)
+  if (page.emptyReason) console.log(`Mensagem de vazio: ${page.emptyReason}`)
+  if (page.warnings.length) console.log(`Avisos: ${page.warnings.join(' | ')}`)
 
   console.log('\nPrimeiros vértices:')
-  for (const row of parsed.rows.slice(0, 5)) {
+  for (const row of page.rows.slice(0, 8)) {
     console.log(`  ${String(row.days).padStart(6)} dias | 252: ${row.rate252 ?? '—'} | 360: ${row.rate360 ?? '—'}`)
+  }
+  if (page.rows.length > 8) console.log(`  … +${page.rows.length - 8} vértices`)
+
+  if (save) {
+    fs.writeFileSync(save, JSON.stringify(page, null, 2))
+    console.log(`\nResultado salvo em ${save}`)
   }
 }
 
 main().catch((err) => {
-  console.error('Falha na consulta:', err)
+  console.error('Falha na consulta:', err instanceof Error ? `${err.name}: ${err.message}` : err)
   process.exit(1)
 })

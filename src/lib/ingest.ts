@@ -1,5 +1,4 @@
-import { fetchRatesPageHtml } from './b3/client'
-import { parseRatesPage } from './b3/parse'
+import { fetchRatesPage } from './b3/client'
 import { SEED_RATES } from './b3/seed-rates'
 import type { ParsedRatesPage, RateOption } from './b3/types'
 import { mapWithConcurrency } from './concurrency'
@@ -151,8 +150,7 @@ export async function storeParsedCurve(
 /** Consulta a B3 e persiste a curva de (taxa, data), registrando o resultado. */
 export async function fetchAndStoreCurve(rateCode: string, dateISO: string): Promise<StoreResult> {
   try {
-    const html = await fetchRatesPageHtml(dateISO, rateCode)
-    const parsed = parseRatesPage(html)
+    const parsed = await fetchRatesPage(rateCode, dateISO)
     return await storeParsedCurve(rateCode, dateISO, parsed)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
@@ -284,8 +282,7 @@ export async function backfillRange(opts: {
   if (!rateCodes || rateCodes.length === 0) {
     if ((await prisma.rateType.count()) === 0) {
       try {
-        const html = await fetchRatesPageHtml(latestExpectedDataDate(), 'PRE')
-        const parsed = parseRatesPage(html)
+        const parsed = await fetchRatesPage('PRE', latestExpectedDataDate())
         await syncRateTypes(parsed.options)
       } catch {
         // sem rede/parse: cai na semente abaixo
@@ -369,8 +366,7 @@ export async function runDailyJob(
   // 1. Descoberta da lista de taxas (não-fatal em caso de falha).
   const discovery: JobResult['discovery'] = { ok: false, optionsFound: 0 }
   try {
-    const html = await fetchRatesPageHtml(end, 'PRE')
-    const parsed = parseRatesPage(html)
+    const parsed = await fetchRatesPage('PRE', end)
     await syncRateTypes(parsed.options)
     await ensureRateTypesSeeded(parsed.options)
     await storeParsedCurve('PRE', end, parsed)
