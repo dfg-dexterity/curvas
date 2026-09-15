@@ -341,7 +341,7 @@ export default function Home() {
                 className="cursor-pointer rounded-[3px] px-2.5 py-1 text-xs font-medium"
                 style={
                   effectiveBase === b
-                    ? { background: 'var(--accent)', color: '#fff' }
+                    ? { background: 'var(--cerceta)', color: 'var(--paper)' }
                     : { color: 'var(--ink-2)' }
                 }
               >

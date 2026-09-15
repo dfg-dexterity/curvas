@@ -17,10 +17,10 @@ export function SiteNav() {
   return (
     <nav
       aria-label="Módulos"
-      className="sticky top-0 z-20 border-b backdrop-blur"
+      className="sticky top-0 z-20 border-b backdrop-blur-[14px]"
       style={{
         borderColor: 'var(--rule)',
-        background: 'color-mix(in srgb, var(--paper) 88%, transparent)',
+        background: 'rgba(27, 27, 27, 0.82)',
       }}
     >
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-1 gap-y-2 px-4 py-2.5 sm:px-6">
@@ -37,11 +37,11 @@ export function SiteNav() {
               key={link.href}
               href={link.href}
               aria-current={ativo ? 'page' : undefined}
-              className="rounded-[3px] px-2.5 py-1 text-sm transition-colors"
+              className="px-2.5 py-1 text-sm tracking-[0.01em] transition-colors"
               style={
                 ativo
-                  ? { background: 'var(--cerceta)', color: '#fff', fontWeight: 600 }
-                  : { color: 'var(--ink-soft)', fontWeight: 500 }
+                  ? { color: 'var(--cerceta-fundo)', fontWeight: 500 }
+                  : { color: 'var(--ink-soft)', fontWeight: 300 }
               }
             >
               {link.label}

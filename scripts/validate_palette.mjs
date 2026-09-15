@@ -139,11 +139,11 @@ function extrair(nome, fonte) {
 }
 
 const fonte = readFileSync(new URL('../src/components/theme.ts', import.meta.url), 'utf8')
-const LIGHT = extrair('LIGHT', fonte)
+// O app é de tema escuro único desde o redesenho — só há uma paleta a validar.
 const DARK = extrair('DARK', fonte)
 
 let falhou = false
-for (const [nome, t] of [['light', LIGHT], ['dark', DARK]]) {
+for (const [nome, t] of [['dark', DARK]]) {
   const { problemas, piorGlobal, piorAdjacente } = validar(nome, t.series, t.surface)
   const contrastes = t.series.map((c) => contraste(c, t.surface).toFixed(2) + ':1').join('  ')
   console.log(`\n[${nome}] superfície ${t.surface}`)

@@ -1,88 +1,75 @@
 @import 'tailwindcss';
 
 /*
- * Identidade Dexterity IT Solutions.
- * Paleta e tipografia da marca: papel creme, tinta grafite, filetes quentes e
- * os quatro naipes (cerceta, roxo, amarelo, musgo). Os nomes antigos do chrome
- * (--page, --surface, --ink…) continuam existindo como apelidos para não
- * quebrar as páginas; os nomes de marca são os canônicos.
+ * ============================================================================
+ * Identidade Dexterity IT Solutions — tema escuro único
+ * ============================================================================
+ *
+ * Mesmo sistema visual da Calculadora CDI/CDB e das demais ferramentas de Dados
+ * de Mercado (taxas-indices, bndes-um, tesourodireto, cotacao-derivativos-b3):
+ * base #1B1B1B, off-white #F7F3E7, cerceta #009994 (destaque #00B3AC), âmbar
+ * #FFA436, roxo #98569A, musgo #597C59. Cantos retos, fios de 1px, sem sombra.
+ *
+ * Tipografia: Barlow Condensed (títulos), Figtree (corpo) e IBM Plex Mono
+ * (rótulos e números) — carregadas em `layout.tsx` via next/font.
+ *
+ * Os nomes antigos do chrome (--page, --surface, --ink…) continuam existindo
+ * como apelidos para não quebrar as páginas; os nomes de marca são os canônicos.
+ * A paleta de visualização vive em `src/components/theme.ts` e é checada por
+ * `node scripts/validate_palette.mjs` — não mexa nas séries sem rodar de novo.
  */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
   /* --- marca --- */
-  --paper: #f7f3e7;
-  --card-bg: #ffffff;
-  --ink-1: #4d4d4d;
-  --ink-soft: #7a7670;
-  --ink-faint: #b6b1a6;
-  --rule: #ded8c6;
+  --paper: #1b1b1b;
+  --card-bg: #242424;
+  --ink-1: #f7f3e7;
+  --ink-soft: #a49f98;
+  --ink-faint: #908c85;
+  --rule: rgba(247, 243, 231, 0.13);
 
   --cerceta: #009994;
-  --cerceta-fundo: #00706c;
+  /* Tom claro do cerceta, para texto e acentos sobre o fundo escuro. */
+  --cerceta-fundo: #00b3ac;
   --roxo: #98569a;
   --amarelo: #ffa436;
-  /* Tom escuro do amarelo: o da marca só tem 1,8:1 sobre o creme. */
-  --amarelo-fundo: #8a5800;
+  --amarelo-fundo: #ffa436;
   --musgo: #597c59;
-  --grafite: #4d4d4d;
-  --vermelho: #d4183d;
+  --grafite: #f7f3e7;
+  --vermelho: #d9563e;
 
-  --shadow-dex: 0 1px 0 rgba(77, 77, 77, 0.1), 0 12px 28px -18px rgba(77, 77, 77, 0.45);
+  /* Cartões do sistema não têm sombra; o apelido fica neutro. */
+  --shadow-dex: none;
 
   /* --- apelidos do chrome (nomes antigos) --- */
   --page: var(--paper);
   --surface: var(--card-bg);
-  --surface-2: #f0ede3;
+  --surface-2: #2e2e2e;
   --ink: var(--ink-1);
   --ink-2: var(--ink-soft);
   --muted: var(--ink-faint);
-  --grid: #ece7d8;
-  --axis: var(--ink-faint);
+  --grid: #313030;
+  --axis: #3f3f3d;
   --hairline: var(--rule);
-  --accent: var(--cerceta);
-  --accent-soft: rgba(0, 153, 148, 0.1);
+  --accent: var(--cerceta-fundo);
+  --accent-soft: rgba(0, 179, 172, 0.16);
   --danger: var(--vermelho);
   --shadow-card: var(--shadow-dex);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-
-    --paper: #242322;
-    --card-bg: #2e2c2a;
-    --ink-1: #f0ebdd;
-    --ink-soft: #a9a499;
-    --ink-faint: #6e6a62;
-    --rule: #3b3936;
-
-    /* naipes clareados para segurar contraste sobre a carta escura */
-    --cerceta: #2fb3ad;
-    --cerceta-fundo: #1a8a85;
-    --roxo: #bd82bf;
-    --amarelo: #ffb45c;
-    --amarelo-fundo: #ffc061;
-    --musgo: #8aab8a;
-    --grafite: #cfcabd;
-    --vermelho: #f07183;
-
-    --shadow-dex: 0 1px 0 rgba(0, 0, 0, 0.4), 0 14px 30px -18px rgba(0, 0, 0, 0.9);
-
-    --surface-2: #383533;
-    --grid: #3b3936;
-    --accent-soft: rgba(47, 179, 173, 0.16);
-  }
+  --elevate-1: rgba(247, 243, 231, 0.05);
 }
 
 body {
   background: var(--paper);
   color: var(--ink-1);
   font-family: var(--font-sans, ui-sans-serif), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-weight: 300;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Títulos, rótulos de eixo e números na condensada da marca. */
+/* Títulos condensados em caixa alta, como nas seções do site. */
 h1,
 h2,
 h3,
@@ -90,8 +77,9 @@ h4,
 .dex-display {
   font-family: var(--font-display, 'Barlow Condensed'), Impact, sans-serif;
   font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.1;
+  letter-spacing: 0.005em;
+  line-height: 0.94;
+  text-transform: uppercase;
 }
 
 /* Números tabulares em qualquer lugar que compare valores. */
@@ -101,21 +89,40 @@ th {
   font-variant-numeric: tabular-nums;
 }
 
-/* Cartão padrão: carta branca sobre o papel, canto miúdo. */
+/* Números e rótulos técnicos em mono, como nas demais ferramentas. */
+.tabular,
+td.tabular,
+.dex-num {
+  font-family: var(--font-mono, 'IBM Plex Mono'), ui-monospace, monospace;
+}
+
+/* Sobrancelha: rótulo curto acima de um título. */
+.dex-eyebrow {
+  font-family: var(--font-mono, 'IBM Plex Mono'), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cerceta-fundo);
+}
+
+/* Cartão padrão: bloco reto com fio de 1px, sem sombra. */
 .card {
   background: var(--card-bg);
   border: 1px solid var(--rule);
-  border-radius: 4px;
-  box-shadow: var(--shadow-dex);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /*
- * Assinatura da marca: filete colorido de 14px na borda esquerda.
- * A cor vem de --suit, que cada seção define (padrão cerceta).
+ * Assinatura da marca: filete colorido na borda esquerda da carta. No sistema
+ * escuro ele encolhe de 14px para 2px — o suficiente para marcar o naipe da
+ * seção sem quebrar a linguagem de fios finos.
  */
 .card-suit {
   position: relative;
-  padding-left: 26px;
+  padding-left: 18px;
 }
 .card-suit::before {
   content: '';
@@ -123,12 +130,12 @@ th {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 14px;
-  background: var(--suit, var(--cerceta));
-  border-radius: 4px 0 0 4px;
+  width: 2px;
+  background: var(--suit, var(--cerceta-fundo));
+  border-radius: 0;
 }
 .suit-cerceta {
-  --suit: var(--cerceta);
+  --suit: var(--cerceta-fundo);
 }
 .suit-roxo {
   --suit: var(--roxo);
@@ -140,69 +147,92 @@ th {
   --suit: var(--musgo);
 }
 
-/* Controles (selects, inputs, botões) alinhados ao chrome */
+/* Controles (selects, inputs, botões) alinhados ao chrome. */
 .control {
-  background: var(--card-bg);
+  background: var(--paper);
   border: 1px solid var(--rule);
-  border-radius: 3px;
+  border-radius: 0;
   color: var(--ink-1);
   font-size: 0.875rem;
+  font-weight: 300;
   padding: 0.375rem 0.625rem;
   transition: border-color 120ms ease, background 120ms ease;
 }
 .control:hover {
-  border-color: var(--ink-faint);
+  border-color: rgba(247, 243, 231, 0.24);
 }
 .control:focus-visible {
-  outline: 2px solid var(--cerceta);
-  outline-offset: 2px;
+  outline: 2px solid var(--amarelo);
+  outline-offset: 3px;
 }
 
+/* Filtro sem cápsula — o ativo ganha fio e cor. */
 .chip {
-  border: 1px solid var(--rule);
-  border-radius: 100px;
-  font-size: 0.75rem;
-  padding: 0.1875rem 0.6875rem;
+  border: 1px solid transparent;
+  border-radius: 0;
+  font-family: var(--font-mono, 'IBM Plex Mono'), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.6875rem;
   color: var(--ink-soft);
+  background: transparent;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
 button.chip:hover {
-  border-color: var(--ink-faint);
   color: var(--ink-1);
+  background: var(--elevate-1);
 }
 button.chip[aria-pressed='true'] {
-  border-color: var(--ink-1);
-  color: var(--ink-1);
-  font-weight: 600;
+  border-color: var(--cerceta);
+  color: var(--cerceta-fundo);
+  font-weight: 500;
 }
 
-/* Botão sólido da marca: tinta cheia, canto miúdo. */
+/* Botão da marca: cerceta cheio que inverte no hover, em caixa alta. */
 .btn-dex {
+  font-family: var(--font-display, 'Barlow Condensed'), sans-serif;
   font-weight: 600;
   font-size: 0.9375rem;
-  border-radius: 3px;
-  padding: 0.5625rem 1rem;
-  border: 1px solid var(--ink-1);
-  background: var(--ink-1);
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: 0;
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--cerceta);
+  background: var(--cerceta);
   color: var(--paper);
   cursor: pointer;
-  transition: opacity 150ms ease;
+  transition: background 150ms ease, color 150ms ease;
 }
-.btn-dex:hover {
-  opacity: 0.86;
+.btn-dex:hover:not([disabled]) {
+  background: transparent;
+  color: var(--cerceta-fundo);
 }
 .btn-dex[disabled] {
   opacity: 0.4;
   cursor: default;
 }
 
+/* Tabelas: cabeçalho em mono, linhas separadas por fio. */
+th {
+  font-family: var(--font-mono, 'IBM Plex Mono'), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
 :focus-visible {
-  outline: 2px solid var(--cerceta);
-  outline-offset: 2px;
+  outline: 2px solid var(--amarelo);
+  outline-offset: 3px;
 }
 
 ::selection {
-  background: var(--accent-soft);
+  background: var(--cerceta);
+  color: var(--ink-1);
 }
 
 @media (prefers-reduced-motion: reduce) {

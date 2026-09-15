@@ -176,7 +176,7 @@ function FormContrato({
         </label>
       )}
 
-      <fieldset className="rounded-[4px] border px-3 py-2.5" style={{ borderColor: 'var(--rule, #ded8c6)' }}>
+      <fieldset className="border px-3 py-2.5" style={{ borderColor: 'var(--rule)' }}>
         <legend className="px-1 text-xs font-semibold">Despesas de captação</legend>
         <div className="grid grid-cols-2 gap-3">
           <label className="block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
@@ -274,7 +274,7 @@ function ResumoContrato({ r, cor }: { r: ResultadoEmprestimo; cor: string }) {
             </thead>
             <tbody>
               {r.parcelas.map((p) => (
-                <tr key={p.numero} style={{ borderTop: '1px solid var(--rule, #ded8c6)' }}>
+                <tr key={p.numero} style={{ borderTop: '1px solid var(--rule)' }}>
                   <td className="py-1 pr-2">{p.numero}{p.carencia ? '·c' : ''}</td>
                   <td className="py-1 pr-2">{fmtDateBr(p.data)}</td>
                   <td className="py-1 pr-2 text-right">{nf2.format(p.taxaPeriodoAA)}</td>
@@ -382,8 +382,8 @@ export default function PaginaEmprestimos() {
         <button
           type="submit"
           disabled={carregando}
-          className="cursor-pointer rounded-[4px] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'var(--accent)' }}
+          className="cursor-pointer px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+          style={{ background: 'var(--cerceta)', color: 'var(--paper)' }}
         >
           {carregando ? 'Simulando…' : comparar ? 'Simular e comparar' : 'Simular'}
         </button>
@@ -439,7 +439,7 @@ export default function PaginaEmprestimos() {
                   </thead>
                   <tbody>
                     {comp.criterios.map((c) => (
-                      <tr key={c.criterio} style={{ borderTop: '1px solid var(--rule, #ded8c6)' }}>
+                      <tr key={c.criterio} style={{ borderTop: '1px solid var(--rule)' }}>
                         <td className="py-1.5 pr-3">{c.criterio}</td>
                         <td className="py-1.5 pr-3 text-right">
                           {c.valorA === null ? '—' : c.criterio.includes('R$') ? nfBRL.format(c.valorA) : nf2.format(c.valorA)}

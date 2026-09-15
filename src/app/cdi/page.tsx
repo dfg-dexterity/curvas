@@ -165,7 +165,7 @@ export default function PaginaCDI() {
                 type="button"
                 onClick={() => setTipoTaxa(id)}
                 className="flex-1 cursor-pointer rounded-[3px] px-2 py-1 text-xs font-medium"
-                style={tipoTaxa === id ? { background: 'var(--accent)', color: '#fff' } : { color: 'var(--ink-2)' }}
+                style={tipoTaxa === id ? { background: 'var(--cerceta)', color: 'var(--paper)' } : { color: 'var(--ink-2)' }}
               >
                 {label}
               </button>
@@ -218,8 +218,8 @@ export default function PaginaCDI() {
           <button
             type="submit"
             disabled={carregando}
-            className="w-full cursor-pointer rounded-[4px] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ background: 'var(--accent)' }}
+            className="w-full cursor-pointer px-3 py-2 text-sm font-semibold disabled:opacity-50"
+            style={{ background: 'var(--cerceta)', color: 'var(--paper)' }}
           >
             {carregando ? 'Calculando…' : 'Calcular correção'}
           </button>
@@ -326,7 +326,7 @@ export default function PaginaCDI() {
                       </thead>
                       <tbody>
                         {memoriaVisivel.map((m) => (
-                          <tr key={m.date} style={{ borderTop: '1px solid var(--rule, #ded8c6)' }}>
+                          <tr key={m.date} style={{ borderTop: '1px solid var(--rule)' }}>
                             <td className="py-1 pr-3">{fmtDateBr(m.date)}</td>
                             <td className="py-1 pr-3 text-right">{nf4.format(m.taxaCDI)}</td>
                             <td className="py-1 pr-3 text-right">{m.fatorDiario.toFixed(8)}</td>
@@ -360,7 +360,7 @@ export default function PaginaCDI() {
                       </thead>
                       <tbody>
                         {resultado.memoriaFixa.map((m) => (
-                          <tr key={m.mes} style={{ borderTop: '1px solid var(--rule, #ded8c6)' }}>
+                          <tr key={m.mes} style={{ borderTop: '1px solid var(--rule)' }}>
                             <td className="py-1 pr-3">{nf2.format(m.mes)}</td>
                             <td className="py-1 pr-3 text-right">{nf4.format(m.taxa)}</td>
                             <td className="py-1 pr-3 text-right">{m.fator.toFixed(8)}</td>
