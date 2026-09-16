@@ -1,11 +1,9 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
-
 /**
  * Paleta de visualização — ancorada nos naipes da marca Dexterity.
  *
- * Validada por `node scripts/validate_palette.mjs`, que checa, nos dois modos:
+ * Validada por `node scripts/validate_palette.mjs`, que checa:
  *  - contraste de cada série contra a superfície do gráfico >= 3:1
  *    (WCAG 2.1 SC 1.4.11, elementos gráficos);
  *  - separação ΔE entre slots ADJACENTES >= 20 na visão tricromata e sob
@@ -29,45 +27,29 @@ export interface VizTheme {
   axis: string
 }
 
-export const LIGHT: VizTheme = {
-  series: ['#009691', '#ad6600', '#6b1171', '#073911', '#4b4b4b', '#b6002f'],
-  surface: '#ffffff',
-  page: '#f7f3e7',
-  ink: '#4d4d4d',
-  ink2: '#7a7670',
-  muted: '#b6b1a6',
-  grid: '#ece7d8',
-  axis: '#ded8c6',
-}
-
+/*
+ * Tema único escuro — as superfícies são as do sistema visual da marca
+ * (base #1B1B1B, cartão #242424, fio e rótulo derivados do off-white).
+ * As séries são mantidas exatamente como validadas. Tentei trocar o slot 1
+ * pelo cerceta de destaque #00B3AC (o das demais ferramentas), mas ele colide
+ * com os slots 4 e 5 sob deuteranopia e protanopia (ΔE 4,7 e 6,7, mínimo 12):
+ * o cerceta da marca é escuro o bastante para se separar dos verdes, o de
+ * destaque não. O #018b86 fica.
+ */
 export const DARK: VizTheme = {
   series: ['#018b86', '#c97800', '#feb2ff', '#96c896', '#d1ccbd', '#ff4358'],
-  surface: '#2e2c2a',
-  page: '#242322',
-  ink: '#f0ebdd',
-  ink2: '#a9a499',
-  muted: '#6e6a62',
-  grid: '#3b3936',
-  axis: '#4a4744',
+  surface: '#242424',
+  page: '#1b1b1b',
+  ink: '#f7f3e7',
+  ink2: '#a49f98',
+  muted: '#908c85',
+  grid: '#313030',
+  axis: '#3f3f3d',
 }
 
 /** Máximo de curvas sobrepostas — limitado pelos slots categóricos validados. */
-export const MAX_COMPARE = LIGHT.series.length
-
-function subscribe(onChange: () => void): () => void {
-  const mq = window.matchMedia('(prefers-color-scheme: dark)')
-  mq.addEventListener('change', onChange)
-  return () => mq.removeEventListener('change', onChange)
-}
-
-export function useIsDark(): boolean {
-  return useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia('(prefers-color-scheme: dark)').matches,
-    () => false,
-  )
-}
+export const MAX_COMPARE = DARK.series.length
 
 export function useVizTheme(): VizTheme {
-  return useIsDark() ? DARK : LIGHT
+  return DARK
 }

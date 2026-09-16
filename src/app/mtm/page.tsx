@@ -136,8 +136,8 @@ function PainelNDF() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full cursor-pointer rounded-[4px] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'var(--accent)' }}
+          className="w-full cursor-pointer px-3 py-2 text-sm font-semibold disabled:opacity-50"
+          style={{ background: 'var(--cerceta)', color: 'var(--paper)' }}
         >
           {loading ? 'Calculando…' : 'Calcular MtM'}
         </button>
@@ -237,7 +237,7 @@ function CamposPerna({
     : tipo === 'dolar' ? 'Cupom cambial (% a.a., linear 360)'
     : 'Spread (% a.a., opcional)'
   return (
-    <fieldset className="rounded-[4px] border px-3 py-2.5" style={{ borderColor: 'var(--rule, #ded8c6)' }}>
+    <fieldset className="border px-3 py-2.5" style={{ borderColor: 'var(--rule)' }}>
       <legend className="px-1 text-xs font-semibold">{titulo}</legend>
       <div className="grid grid-cols-2 gap-3">
         <Campo label="Indexador">
@@ -316,8 +316,8 @@ function PainelSwap() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full cursor-pointer rounded-[4px] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'var(--accent)' }}
+          className="w-full cursor-pointer px-3 py-2 text-sm font-semibold disabled:opacity-50"
+          style={{ background: 'var(--cerceta)', color: 'var(--paper)' }}
         >
           {loading ? 'Calculando…' : 'Calcular MtM'}
         </button>
@@ -472,8 +472,8 @@ function PainelOpcao() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full cursor-pointer rounded-[4px] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'var(--accent)' }}
+          className="w-full cursor-pointer px-3 py-2 text-sm font-semibold disabled:opacity-50"
+          style={{ background: 'var(--cerceta)', color: 'var(--paper)' }}
         >
           {loading ? 'Calculando…' : 'Precificar / MtM'}
         </button>
@@ -599,7 +599,7 @@ export default function PaginaMtM() {
             className="chip cursor-pointer px-3 py-1.5 text-sm hover:opacity-80"
             style={
               aba === a.id
-                ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }
+                ? { background: 'var(--cerceta)', color: 'var(--paper)', borderColor: 'var(--accent)' }
                 : { color: 'var(--ink-2)' }
             }
           >
